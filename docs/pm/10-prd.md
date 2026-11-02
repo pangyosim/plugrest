@@ -24,9 +24,9 @@ EV 충전 대기 시간 동안 원탭으로 시트·조명·공조를 '휴식 �
 2. **휴식 모드 ON** (원탭):
    - 현재 시트/조명/공조 상태 스냅샷 저장 (**[v0.4]** 충전 한도는 건드리지 않으므로 제외)
    - **[v0.5] 리클라인 전 점검**: 뒷좌석(운전석 뒤) 착좌 감지되면 등받이 각도를 절반만 젖히고 안내. 리클라인 중 터치 시 즉시 정지.
-   - 운전석 등받이 리클라인, 통풍 시트 ON(여름)/열선(겨울: HVAC 외기온 없으면 설정 온도 기준)
+   - 운전석 등받이 리클라인, 통풍 시트 선택(기본 OFF)
    - 앰비언트 라이트 어둡게·따뜻한 색, 실내등 OFF
-   - HVAC 22°C, 풍량 1단, **외기 유입 기본**(재순환 장시간 CO2 상승 방지) **[v0.5]**. 통풍/열선은 칩으로 선택(기본 OFF). **[v0.3]** SOC가 하한(기본 20%, 완속 충전 중 미적용) 아래면 공조 절전 + 안내
+   - HVAC 22°C, 풍량 1단, **외기 유입 기본**(재순환 장시간 CO2 상승 방지) **[v0.5]**. 통풍은 칩으로 선택(기본 OFF), 열선은 제어하지 않음 **[v0.5 구현 확정]**. **[v0.3]** SOC가 하한(기본 20%, 완속 충전 중 미적용) 아래면 공조 절전 + 안내
    - **[v0.4]** 목표 SOC는 앱 내부 값으로만 쓴다. `setEvChargePercentLimit`는 호출하지 않음(원래값 get API가 없어 복원 불가 → 사용자 설정 영구 변경 리스크 R5). 목표 도달은 SOC 리스너로 감시.
    - TTS **[v0.5]**: "휴식 모드를 시작합니다. 목표 80%에 도달하면 깨워 드릴게요." (시작 시 시간 언급 없음 — 처음 3분은 계산 중)
 3. **휴식 화면**: 큰 SOC 링 + 남은 시간 + 목표. **[v0.3]** 남은 시간: 처음 3분은 "계산 중" 표시(TTS도 시간을 말하지 않음) → 이후 최근 5분 기울기 사용, 80% 초과 구간은 기울기×0.5 보정 [추정 계수, 실데이터로 교정], 표시는 5분 단위 반올림 + "약". 충전 전류 값이 있으면 전류 기반 우선. 화면 밝기 최소, 애니메이션 없음. "종료" 버튼 1개.
@@ -51,7 +51,7 @@ EV 충전 대기 시간 동안 원탭으로 시트·조명·공조를 '휴식 �
 | 충전 감지 | EvBattery `registerEvChargePortOpen`, `registerEvBatteryStateOfCharge`, 보조 `getEvChargeSwitchState` | CAR_ENERGY |
 | 목표 SOC | **[v0.4]** 앱 내부 값 + `registerEvBatteryStateOfCharge` 감시. 차량 충전 한도는 변경하지 않음 | (없음) |
 | 주행 제한 | AAOS `CarUxRestrictionsManager` (단일 기준) + 보조: Gear `registerGearSelection` → D/R/N이면 제한, null/UNKNOWN(미지원)이면 판정 보류하고 UxRestrictions만 사용 **[v0.5 코드리뷰]** **[v0.4, 2.3.2 바이너리 전용·에뮬레이터 실측 필요]**, Brake `registerBrakePedalStatus`(출발 의도) | CAR_DRIVE |
-| 시트 | Seat `moveSeatBackrestAngle`, `setHvacSeatVentilation`, `setHvacSeatTemperature`, `getCurrentSeatOccupancy` | CAR_SEATS / CONTROL_CAR_SEATS |
+| 시트 | Seat `moveSeatBackrestAngle`, `setHvacSeatVentilation`, `getCurrentSeatOccupancy` | CAR_SEATS / CONTROL_CAR_SEATS |
 | 조명 | Light 앰비언트 밝기·색·스위치 set(**CAR_LIGHTS**), 실내등 등 나머지 set(CONTROL_CAR_LIGHTS) **[v0.5]** | CAR_LIGHTS / CONTROL_CAR_LIGHTS |
 | 공조 | HVAC 온도·풍량 set/get | CAR_CLIMATE / CONTROL_CAR_CLIMATE |
 | 하차 체크 | Window `registerWindowPosition`, Light 상태, Seat occupancy | **CAR_WINDOWS**, CAR_LIGHTS, CAR_SEATS |
