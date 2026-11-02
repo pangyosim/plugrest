@@ -2,6 +2,9 @@ package ai.pleos.plugrest.vehicle
 
 import ai.pleos.playground.vehicle.Vehicle
 import ai.pleos.playground.vehicle.api.model.area.SeatArea
+import ai.pleos.playground.vehicle.api.model.capability.AccessType
+import ai.pleos.playground.vehicle.api.model.capability.AreaBounds
+import ai.pleos.playground.vehicle.api.model.capability.CapabilityConfig
 import ai.pleos.playground.vehicle.api.model.area.WindowArea
 import ai.pleos.playground.vehicle.constant.ErrorCode
 import ai.pleos.playground.vehicle.constant.area.SeatValue
@@ -45,6 +48,8 @@ class PleosVehicleGateway(context: Context) : VehicleGateway {
     private var vehicle = Vehicle(appContext)
     private var released = false
     private var refreshJob: kotlinx.coroutines.Job? = null
+    /** checkXxxCapabilities 결과 캐시: 앰비언트 밝기 허용 범위(모르면 null → clamp 안 함) */
+    @Volatile private var ambientRange: IntRange? = null
     private val _state = MutableStateFlow(VehicleState())
     override val state: StateFlow<VehicleState> = _state
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
@@ -78,7 +83,32 @@ class PleosVehicleGateway(context: Context) : VehicleGateway {
         registerListeners()
         registerUxRestrictions()
         refresh()
+        scope.launch { checkCapabilities() }
     }
+
+    /**
+     * 초기화 시 1회: Seat 등받이 이동·Light 앰비언트(밝기·색)의 지원 여부와 범위를 미리 확인한다.
+     * 미지원이면 set을 보내지 않고 바로 "이 차량 미지원". onFailed 건너뛰기 경로는 그대로 두어 이중 안전.
+     */
+    private suspend fun checkCapabilities() {
+        val seat = vehicle.getSeat(); val light = vehicle.getLight()
+        get<Pair<CapabilityConfig, List<SeatArea>>>(Feature.SEAT_RECLINE) { ok, err ->
+            seat.checkMoveSeatBackrestAngleCapabilities({ c, areas -> ok(c to areas) }, err)
+        }?.let { (c, areas) -> if (!c.writable() || areas.none { it.isDriver() }) markUnsupported(Feature.SEAT_RECLINE) }
+        get<Pair<CapabilityConfig, Map<SeatArea, AreaBounds<Int>>>>(Feature.AMBIENT) { ok, err ->
+            light.checkAmbientLightBrightnessCapabilities({ c, m -> ok(c to m) }, err)
+        }?.let { (c, bounds) ->
+            val b = bounds.entries.firstOrNull { it.key.isDriver() }?.value
+            if (!c.writable() || b == null) markUnsupported(Feature.AMBIENT) else ambientRange = b.minValue..b.maxValue
+        }
+        get<Pair<CapabilityConfig, List<SeatArea>>>(Feature.AMBIENT) { ok, err ->
+            light.checkAmbientLightBrightnessColorCapabilities({ c, areas -> ok(c to areas) }, err)
+        }?.let { (c, areas) -> if (!c.writable() || areas.none { it.isDriver() }) markUnsupported(Feature.AMBIENT) }
+    }
+
+    private fun CapabilityConfig.writable() = accessType == AccessType.WRITE || accessType == AccessType.READ_WRITE
+    private fun SeatArea.isDriver() = values.contentEquals(driver.values) // SeatArea는 data class가 아니라 값 배열로 비교
+    private fun markUnsupported(f: Feature) = _state.update { it.copy(unsupported = it.unsupported + f) }
 
     override fun stop() {
         refreshJob?.cancel() // 이전 vehicle 객체로 get이 계속 돌지 않게 (검수 C2)
@@ -193,7 +223,7 @@ class PleosVehicleGateway(context: Context) : VehicleGateway {
     override suspend fun applyRest(seatMode: SeatMode, halfRecline: Boolean) {
         val seat = vehicle.getSeat(); val light = vehicle.getLight(); val hvac = vehicle.getHVAC()
         // 조명: 앰비언트 어둡게·따뜻하게, 실내등 OFF
-        set(Feature.AMBIENT) { ok, err -> light.setAmbientLightBrightness(driver, AMBIENT_DIM, { _, _ -> ok(Unit) }, err) }
+        set(Feature.AMBIENT) { ok, err -> light.setAmbientLightBrightness(driver, clampTo(AMBIENT_DIM, ambientRange), { _, _ -> ok(Unit) }, err) }
         set(Feature.AMBIENT) { ok, err -> light.setAmbientLightBrightnessColor(driver, AMBIENT_WARM, { _, _ -> ok(Unit) }, err) }
         set(Feature.CABIN_LIGHT) { ok, err -> light.setCabinLightSwitch(LightSwitch.OFF, { ok(Unit) }, err) }
         // 공조: 22°C, 풍량 1단, 외기 유입, 전원 ON
@@ -213,7 +243,7 @@ class PleosVehicleGateway(context: Context) : VehicleGateway {
         val light = vehicle.getLight(); val hvac = vehicle.getHVAC(); val seat = vehicle.getSeat()
         restoreSeat(snapshot)
         snapshot.seatVent?.let { v -> set(Feature.SEAT_VENT) { ok, err -> seat.setHvacSeatVentilation(driver, v, { _, _ -> ok(Unit) }, err) } }
-        snapshot.ambientBrightness?.let { v -> set(Feature.AMBIENT) { ok, err -> light.setAmbientLightBrightness(driver, v, { _, _ -> ok(Unit) }, err) } }
+        snapshot.ambientBrightness?.let { v -> set(Feature.AMBIENT) { ok, err -> light.setAmbientLightBrightness(driver, clampTo(v, ambientRange), { _, _ -> ok(Unit) }, err) } }
         snapshot.ambientColor?.let { v -> set(Feature.AMBIENT) { ok, err -> light.setAmbientLightBrightnessColor(driver, v, { _, _ -> ok(Unit) }, err) } }
         snapshot.cabinLightOn?.let { on -> set(Feature.CABIN_LIGHT) { ok, err -> light.setCabinLightSwitch(if (on) LightSwitch.ON else LightSwitch.OFF, { ok(Unit) }, err) } }
         snapshot.hvacTemp?.let { v -> set(Feature.HVAC) { ok, err -> hvac.setHvacTemperature(driver, v, TemperatureUnit.CELSIUS, { _, _ -> ok(Unit) }, err) } }

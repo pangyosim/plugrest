@@ -50,4 +50,12 @@ class FakeVehicleGatewayTest {
         fake.restoreSeat(CabinSnapshot())                            // 다 되돌렸으면 더 이상 명령 없음
         assertEquals(2, fake.log.value.count { "FORWARD" in it })
     }
+
+    @Test
+    fun clampTo_respectsCapabilityRange_orPassesThroughWhenUnknown() {
+        assertEquals(20, clampTo(20, 0..100))
+        assertEquals(30, clampTo(20, 30..100))   // 최소값 아래 → 최소값
+        assertEquals(60, clampTo(120, 0..60))    // 최대값 위 → 최대값
+        assertEquals(120, clampTo(120, null))    // 범위 모르면 그대로
+    }
 }

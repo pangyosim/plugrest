@@ -34,6 +34,8 @@ class FakeVehicleGateway(
     private var ticker: Job? = null
     private var seatJob: Job? = null
     @Volatile private var reclinedMs = 0L
+    /** Fake의 capability 고정 범위 (앰비언트 밝기) */
+    val ambientRange: IntRange = 0..100
 
     // ---- 패널 조작 ----
     fun setSoc(v: Int) = _state.update { it.copy(soc = v.coerceIn(0, 100)) }
@@ -66,7 +68,7 @@ class FakeVehicleGateway(
     }
 
     override suspend fun applyRest(seatMode: SeatMode, halfRecline: Boolean) {
-        set("Light.setAmbientLightBrightness(ROW_1_LEFT, ${PleosVehicleGateway.AMBIENT_DIM})")
+        set("Light.setAmbientLightBrightness(ROW_1_LEFT, ${clampTo(PleosVehicleGateway.AMBIENT_DIM, ambientRange)})")
         set("Light.setAmbientLightBrightnessColor(ROW_1_LEFT, warm)")
         set("Light.setCabinLightSwitch(OFF)")
         set("HVAC.setHvacTemperature(ROW_1_LEFT, ${PleosVehicleGateway.REST_TEMP_C}, CELSIUS)")
