@@ -36,6 +36,7 @@ class RestService : Service() {
     private val g get() = App.graph
     private var countdown: Job? = null
     private var wakeRepeat: Job? = null
+    private var expiry: Job? = null
     /** 차량 제어(applyRest/복원/선제 복원)는 항상 이 Job 하나. 주행 제한 진입 시 통째로 취소. */
     private var control: Job? = null
     private var sessionSeen = false // 시작 직후의 Idle(초기값)로 자기 종료하지 않기 위함
@@ -92,6 +93,8 @@ class RestService : Service() {
                         g.store.clear()
                         updateNotification("휴식 모드 종료 · 목표 ${p.target}%")
                         if (p.offerRestore) g.narrator.speak("시트를 원래대로 되돌릴까요?")
+                        // 차량 상태 변화가 없어도 2시간 만료가 적용되도록 1회 타이머 (검수 D2)
+                        if (!p.restored && expiry == null) expiry = launch { delay(g.session.sessionRemainingMs() + 1_000); g.session.evaluate(g.gateway.state.value) }
                         // 사용자 반응 없으면 30초 간격 최대 3회 다시 깨움 (PRD v0.5) — 복원 완료·정차 상태에서만
                         if (p.reason == EndReason.TARGET_REACHED && p.restored && wakeRepeat == null) wakeRepeat = launch {
                             repeat(3) {
@@ -101,7 +104,7 @@ class RestService : Service() {
                             if (g.session.phase.value is Phase.Done) g.session.reset() // 재안내 3회 끝 → 세션 종료
                         }
                     }
-                    Phase.Idle -> if (sessionSeen) { abortControl(); wakeRepeat?.cancel(); wakeRepeat = null; stopSelf() }
+                    Phase.Idle -> if (sessionSeen) { abortControl(); wakeRepeat?.cancel(); wakeRepeat = null; expiry?.cancel(); expiry = null; stopSelf() }
                 }
             }
         }

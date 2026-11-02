@@ -160,8 +160,12 @@ class RestSession(
 
     @Synchronized fun cancelRestore() {
         val p = _phase.value as? Phase.Restoring ?: return
+        snapshot = null // 사용자가 "그대로"를 택했으므로 이후 재정차 제안 없음 (검수 D1)
         finish(Phase.Done(p.target, restored = false, p.reason))
     }
+
+    /** Done 유지 만료까지 남은 ms (서비스가 타이머로 evaluate를 1회 더 부르기 위함, 검수 D2) */
+    @Synchronized fun sessionRemainingMs(): Long = (sessionStartedAt + MAX_SESSION_MS - now()).coerceAtLeast(0)
 
     @Synchronized fun restoreCompleted() {
         val p = _phase.value as? Phase.Restoring ?: return

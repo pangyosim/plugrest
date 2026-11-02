@@ -57,6 +57,11 @@ class RestSessionTest {
         session.requestStop()
         session.cancelRestore()
         assertEquals(Phase.Done(80, restored = false, EndReason.USER), session.phase.value)
+        // 취소 뒤 케이블 분리 → 주행 → 재정차: 제안 없이 세션 종료 (D1)
+        session.evaluate(charging.copy(chargePortConnected = false))
+        session.evaluate(charging.copy(chargePortConnected = false, gear = Gear.DRIVE))
+        session.evaluate(charging.copy(chargePortConnected = false, gear = Gear.PARK))
+        assertEquals(Phase.Idle, session.phase.value)
     }
 
     @Test

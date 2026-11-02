@@ -201,7 +201,7 @@ class PleosVehicleGateway(context: Context) : VehicleGateway {
         set(Feature.HVAC) { ok, err -> hvac.setHvacTemperature(driver, REST_TEMP_C, TemperatureUnit.CELSIUS, { _, _ -> ok(Unit) }, err) }
         set(Feature.HVAC) { ok, err -> hvac.setHvacFanSpeed(driver, REST_FAN, { _, _ -> ok(Unit) }, err) }
         set(Feature.HVAC) { ok, err -> hvac.setHvacRecirculation(driver, false, { _, _ -> ok(Unit) }, err) }
-        // 시트: 통풍/열선(칩 선택), 등받이 리클라인
+        // 시트: 통풍(칩 선택), 등받이 리클라인
         when (seatMode) {
             SeatMode.VENT -> set(Feature.SEAT_VENT) { ok, err -> seat.setHvacSeatVentilation(driver, SEAT_LEVEL, { _, _ -> ok(Unit) }, err) }
             SeatMode.NONE -> Unit
