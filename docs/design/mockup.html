@@ -1,0 +1,263 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>충전쉼표 화면 목업</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Asta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+/* 토큰: tokens.md 와 1:1. 1px = 1dp */
+:root{
+  --bg:#1D1E21; --bgRest:#000000; --surface:#313236; --surfaceRest:#141518;
+  --textPrimary:#FFFFFF; --textSecondary:#B4B5B8; --textTertiary:#8A8B90;
+  --primary:#0064FF; --onPrimary:#FFFFFF; --charge:#43E0A0; --warn:#FFC75A;
+  --restText:#B4B5B8; --restTextDim:#7A7B80; --restCharge:#2B8F67; --track:#26272B;
+  --disabledBg:#2A2B2F; --disabledText:#6B6C70;
+  --pad:48px; --gap:24px; --section:48px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#0B0B0D;color:var(--textPrimary);font-family:"Asta Sans",-apple-system,"Apple SD Gothic Neo",sans-serif;padding:16px}
+header{max-width:1100px;margin-bottom:24px;color:#9A9BA0;font-size:15px;line-height:1.6}
+header h1{color:#fff;font-size:22px;margin-bottom:4px}
+header label{margin-left:12px}
+.stage{display:flex;gap:48px;align-items:flex-start;overflow-x:auto;padding-bottom:24px}
+.col{flex:none}
+.col p{color:#9A9BA0;font-size:15px;margin-bottom:10px}
+.col p b{color:#fff}
+.frame{zoom:var(--z,0.5)}
+
+.frame{width:800px;height:1200px;background:var(--bg);border-radius:24px;padding:var(--pad);display:flex;flex-direction:column;overflow:hidden;font-variant-numeric:tabular-nums}
+.frame.rest{background:var(--bgRest)}
+
+/* type */
+.displayXL{font-size:160px;line-height:168px;font-weight:800}
+.displayL{font-size:112px;line-height:120px;font-weight:700}
+.headlineL{font-size:60px;line-height:80px;font-weight:800}
+.titleL{font-size:40px;line-height:52px;font-weight:700}
+.titleS{font-size:32px;line-height:40px;font-weight:700}
+.bodyL{font-size:30px;line-height:38px}
+.bodyS{font-size:26px;line-height:34px}
+.labelM{font-size:24px;line-height:28px}
+.sec{color:var(--textSecondary)} .ter{color:var(--textTertiary)}
+
+/* components */
+.status{display:flex;align-items:center;gap:12px;height:64px;padding:0 24px;border-radius:16px;background:var(--surface);align-self:flex-start;color:var(--textSecondary)}
+.status svg{width:28px;height:28px}
+.btnL{height:100px;border-radius:32px;border:0;width:100%;font:inherit;font-size:32px;line-height:40px;font-weight:700}
+.btnL.primary{background:var(--primary);color:var(--onPrimary)}
+.btnL.rest{background:var(--surfaceRest);color:var(--restText)}
+.btnL.disabled{background:var(--disabledBg);color:var(--disabledText)}
+.chips{display:flex;gap:var(--gap)}
+.chip{flex:1;height:80px;border-radius:24px;background:var(--surface);color:var(--textSecondary);display:flex;align-items:center;justify-content:center;font-size:32px;font-weight:700}
+.chip.on{color:var(--textPrimary);box-shadow:inset 0 0 0 4px var(--primary)}
+.chip.off{background:var(--disabledBg);color:var(--disabledText)}
+.card{background:var(--surface);border-radius:24px;padding:32px;display:flex;flex-direction:column;gap:24px}
+.row{display:flex;align-items:center;gap:20px}
+.row svg{flex:none;width:40px;height:40px}
+.spacer{flex:1}
+.center{text-align:center}
+.ring{position:relative;width:520px;height:520px;margin:0 auto}
+.ring svg{position:absolute;inset:0}
+.ring .in{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+</style>
+</head>
+<body>
+<header>
+  <h1>충전쉼표 (Plug &amp; Rest) — 화면 목업 v0.1</h1>
+  Portrait 800×1200dp · 다크 고정 · 애니메이션 없음 · 토큰은 docs/design/tokens.md
+  <label>배율 <select id="z">
+    <option value="0.5">50%</option><option value="0.75">75%</option><option value="1">100% (1px = 1dp)</option>
+  </select></label>
+</header>
+
+<div class="stage zoomwrap" id="stage">
+
+  <!-- 1. Idle -->
+  <section class="col">
+    <p><b>① Idle</b> — P + 충전 중. 목표 칩 · 시트 통풍(기본 끔) 선택 후 원탭 시작</p>
+    <div class="frame">
+      <div class="status labelM">
+        <svg viewBox="0 0 24 24"><path d="M13 2 5 14h6l-2 8 10-13h-6l2-7z" fill="var(--charge)"/></svg>
+        <span>P · 충전 중</span>
+      </div>
+
+      <div style="margin-top:96px">
+        <div class="labelM sec">현재 배터리</div>
+        <div class="displayL">50%</div>
+      </div>
+
+      <div style="margin-top:var(--section)">
+        <div class="labelM sec" style="margin-bottom:var(--gap)">목표 충전량</div>
+        <div class="chips">
+          <div class="chip on">80%</div>
+          <div class="chip">90%</div>
+        </div>
+        <div class="bodyS ter" style="margin-top:var(--gap)">시작 후 실제 충전 속도로 남은 시간을 계산해요</div>
+      </div>
+
+      <div style="margin-top:var(--section)">
+        <div class="labelM sec" style="margin-bottom:var(--gap)">시트 통풍</div>
+        <div class="chips">
+          <div class="chip on">끔</div>
+          <div class="chip">켬</div>
+        </div>
+      </div>
+
+      <div class="spacer"></div>
+      <div class="bodyS ter" style="margin-bottom:var(--gap)">시트를 젖히고 조명·공조를 휴식용으로 바꿉니다. 끝나면 원래대로 돌려놓아요.</div>
+      <button class="btnL primary">휴식 모드 시작</button>
+    </div>
+  </section>
+
+  <!-- 2. Resting: 계산 중 (시작 후 3분) -->
+  <section class="col">
+    <p><b>② Resting · 계산 중</b> — 시작 후 3분, 남은 시간 숫자 없음</p>
+    <div class="frame rest">
+      <div class="labelM" style="color:var(--restTextDim)">휴식 중 · 목표 80%</div>
+
+      <div class="ring" style="margin-top:56px">
+        <!-- SOC 51% → 0.51 × 1545.6 = 788.3 -->
+        <svg viewBox="0 0 520 520">
+          <circle cx="260" cy="260" r="246" fill="none" stroke="var(--track)" stroke-width="28"/>
+          <circle cx="260" cy="260" r="246" fill="none" stroke="var(--restCharge)" stroke-width="28"
+                  stroke-dasharray="788.3 1545.6" transform="rotate(-90 260 260)" stroke-linecap="butt"/>
+          <line x1="260" y1="0" x2="260" y2="40" stroke="var(--restText)" stroke-width="6" transform="rotate(288 260 260)"/>
+        </svg>
+        <div class="in">
+          <div class="displayXL" style="color:var(--restText)">51%</div>
+        </div>
+      </div>
+
+      <div class="center" style="margin-top:var(--section)">
+        <div class="labelM" style="color:var(--restTextDim)">남은 시간</div>
+        <!-- 숫자 자리 높이(120dp) 유지 → 숫자로 바뀔 때 레이아웃 안 흔들림 -->
+        <div class="titleL" style="color:var(--restTextDim);height:120px;display:flex;align-items:center;justify-content:center">계산 중…</div>
+      </div>
+
+      <div class="spacer"></div>
+      <div class="bodyS center" style="color:var(--restTextDim);margin-bottom:var(--gap)">
+        시트 · 공조 22°C 적용 중<br>앰비언트 조명 · 이 차량 미지원
+      </div>
+      <button class="btnL rest">종료</button>
+    </div>
+  </section>
+
+  <!-- 3. Resting -->
+  <section class="col">
+    <p><b>③ Resting</b> — 저휘도. 하단 상태줄은 뒷좌석 착좌 감지 시 변형 1줄 추가 예</p>
+    <div class="frame rest">
+      <div class="labelM" style="color:var(--restTextDim)">휴식 중 · 목표 80%</div>
+
+      <div class="ring" style="margin-top:56px">
+        <!-- r = (520-28)/2 = 246, C = 1545.6. SOC 62% → 958.3. 목표 80% 눈금 -->
+        <svg viewBox="0 0 520 520">
+          <circle cx="260" cy="260" r="246" fill="none" stroke="var(--track)" stroke-width="28"/>
+          <circle cx="260" cy="260" r="246" fill="none" stroke="var(--restCharge)" stroke-width="28"
+                  stroke-dasharray="958.3 1545.6" transform="rotate(-90 260 260)" stroke-linecap="butt"/>
+          <line x1="260" y1="0" x2="260" y2="40" stroke="var(--restText)" stroke-width="6" transform="rotate(288 260 260)"/>
+        </svg>
+        <div class="in">
+          <div class="displayXL" style="color:var(--restText)">62%</div>
+        </div>
+      </div>
+
+      <div class="center" style="margin-top:var(--section)">
+        <div class="labelM" style="color:var(--restTextDim)">남은 시간</div>
+        <div class="displayL" style="color:var(--restText)">약 20분</div>
+      </div>
+
+      <div class="spacer"></div>
+      <div class="bodyS center" style="color:var(--restTextDim);margin-bottom:var(--gap)">
+        뒷좌석에 사람이 있어 등받이를 절반만 젖혔어요<br>시트 · 공조 22°C 적용 중<br>앰비언트 조명 · 이 차량 미지원
+      </div>
+      <button class="btnL rest">종료</button>
+    </div>
+  </section>
+
+  <!-- 4. Restoring: 목표 도달 직후 10초 -->
+  <section class="col">
+    <p><b>④ Restoring</b> — 목표 도달 직후 10초 카운트다운. 이 화면만 버튼이 "취소"</p>
+    <div class="frame rest">
+      <div class="labelM" style="color:var(--restTextDim)">목표 80% 도달</div>
+
+      <div class="center" style="margin-top:160px">
+        <div class="bodyL" style="color:var(--restText)">목표 80%에 도달했습니다<br>10초 후 시트를 원래대로</div>
+        <div class="displayXL" style="color:var(--restText);margin-top:var(--section)">10</div>
+        <div class="labelM" style="color:var(--restTextDim)">초</div>
+      </div>
+
+      <div class="spacer"></div>
+      <div class="bodyS center" style="color:var(--restTextDim);margin-bottom:var(--gap)">취소하면 되돌리지 않고 지금 상태 그대로 끝냅니다</div>
+      <button class="btnL rest">취소</button>
+    </div>
+  </section>
+
+  <!-- 5. Done -->
+  <section class="col">
+    <p><b>⑤ Done · 복원됨</b> — 카운트다운 끝 → 복원 + 하차 체크</p>
+    <div class="frame">
+      <div style="margin-top:48px">
+        <div class="headlineL">목표 80% 도달</div>
+        <div class="bodyL sec" style="margin-top:var(--gap)">시트·조명·공조를 원래대로 되돌렸어요.</div>
+      </div>
+
+      <div class="card" style="margin-top:var(--section)">
+        <div class="titleS">내리기 전 확인</div>
+        <div class="row bodyL">
+          <svg viewBox="0 0 24 24"><path d="M12 3 2 21h20L12 3z" fill="var(--warn)"/><path d="M12 10v5M12 17.5v.5" stroke="#1D1E21" stroke-width="2.2" stroke-linecap="round"/></svg>
+          <span>뒷좌석에 사람이 있어요</span>
+        </div>
+        <div class="row bodyL">
+          <svg viewBox="0 0 24 24"><path d="M12 3 2 21h20L12 3z" fill="var(--warn)"/><path d="M12 10v5M12 17.5v.5" stroke="#1D1E21" stroke-width="2.2" stroke-linecap="round"/></svg>
+          <span>조수석 창문이 열려 있어요</span>
+        </div>
+        <div class="row bodyL">
+          <svg viewBox="0 0 24 24"><path d="M12 3 2 21h20L12 3z" fill="var(--warn)"/><path d="M12 10v5M12 17.5v.5" stroke="#1D1E21" stroke-width="2.2" stroke-linecap="round"/></svg>
+          <span>실내등이 켜져 있어요</span>
+        </div>
+      </div>
+
+      <div class="spacer"></div>
+      <button class="btnL primary">확인</button>
+    </div>
+  </section>
+
+  <!-- 6. Done 변형: Restoring에서 취소 -->
+  <section class="col">
+    <p><b>⑥ Done · 그대로 둠</b> — Restoring에서 "취소" → 복원 없이 종료</p>
+    <div class="frame">
+      <div style="margin-top:48px">
+        <div class="headlineL">목표 80% 도달</div>
+        <div class="bodyL sec" style="margin-top:var(--gap)">시트·조명·공조는 지금 상태 그대로예요.</div>
+      </div>
+
+      <div class="card" style="margin-top:var(--section)">
+        <div class="titleS">내리기 전 확인</div>
+        <div class="row bodyL">
+          <svg viewBox="0 0 24 24"><path d="M12 3 2 21h20L12 3z" fill="var(--warn)"/><path d="M12 10v5M12 17.5v.5" stroke="#1D1E21" stroke-width="2.2" stroke-linecap="round"/></svg>
+          <span>뒷좌석에 사람이 있어요</span>
+        </div>
+        <div class="row bodyL">
+          <svg viewBox="0 0 24 24"><path d="M12 3 2 21h20L12 3z" fill="var(--warn)"/><path d="M12 10v5M12 17.5v.5" stroke="#1D1E21" stroke-width="2.2" stroke-linecap="round"/></svg>
+          <span>조수석 창문이 열려 있어요</span>
+        </div>
+        <div class="row bodyL">
+          <svg viewBox="0 0 24 24"><path d="M12 3 2 21h20L12 3z" fill="var(--warn)"/><path d="M12 10v5M12 17.5v.5" stroke="#1D1E21" stroke-width="2.2" stroke-linecap="round"/></svg>
+          <span>실내등이 켜져 있어요</span>
+        </div>
+      </div>
+
+      <div class="spacer"></div>
+      <button class="btnL primary">확인</button>
+    </div>
+  </section>
+
+
+</div>
+<script>
+  const s=document.getElementById('stage'), z=document.getElementById('z');
+  z.onchange=()=>s.style.setProperty('--z',z.value);
+</script>
+</body>
+</html>

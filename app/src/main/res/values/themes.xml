@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.PlugRest" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">#1D1E21</item>
+        <item name="android:statusBarColor">#1D1E21</item>
+        <item name="android:navigationBarColor">#1D1E21</item>
+    </style>
+</resources>

@@ -1,0 +1,63 @@
+package ai.pleos.plugrest.vehicle
+
+import kotlinx.coroutines.flow.StateFlow
+
+enum class Gear { PARK, DRIVE, REVERSE, NEUTRAL, UNKNOWN }
+enum class SeatMode { NONE, VENT, HEAT }
+
+/** 차량이 지원하지 않아 건너뛴 기능. UI에 "· 이 차량 미지원"으로만 표시. */
+enum class Feature(val label: String) {
+    SEAT_RECLINE("등받이"), SEAT_VENT("통풍 시트"), SEAT_HEAT("열선 시트"),
+    AMBIENT("앰비언트 라이트"), CABIN_LIGHT("실내등"), HVAC("공조"),
+    GEAR("기어"), CHARGE_PORT("충전 포트"), BRAKE("브레이크"), WINDOW("창문"), OCCUPANCY("착좌 감지"),
+}
+
+data class VehicleState(
+    val connected: Boolean = false,
+    val soc: Int? = null,
+    val chargePortConnected: Boolean? = null, // null = 미확인/미지원
+    val chargeSwitchOn: Boolean? = null,      // 보조 신호 (Idle에서만 폴링)
+    val gear: Gear? = null,                   // null = 미확인/미지원 (보조 신호)
+    val brakePressed: Boolean = false,
+    val uxRestricted: Boolean = false,        // CarUxRestrictionsManager.isRequiresDistractionOptimization
+    val openWindows: List<String> = emptyList(),
+    val cabinLightOn: Boolean = false,
+    val rearSeatOccupied: Boolean? = null,      // null = 못 읽음 → 보수적으로 절반 리클라인
+    val unsupported: Set<Feature> = emptySet(),
+    val seatMoving: Boolean = false,
+)
+
+/**
+ * 주행 제한: CarUxRestrictions가 1순위. 기어는 D/R/N이면 제한, null/UNKNOWN(기어 API 미지원)은 판정 보류.
+ */
+val VehicleState.drivingRestricted: Boolean
+    get() = uxRestricted || (gear != null && gear != Gear.PARK && gear != Gear.UNKNOWN)
+
+/** 휴식 모드 시작 전 차량 상태. 종료 시 그대로 되돌린다. null = 읽지 못함(복원도 건너뜀). */
+data class CabinSnapshot(
+    val backrestAngle: Int? = null,
+    val seatVent: Int? = null,
+    val seatHeat: Int? = null,
+    val ambientBrightness: Int? = null,
+    val ambientColor: Int? = null,
+    val cabinLightOn: Boolean? = null,
+    val hvacTemp: Float? = null,
+    val hvacFan: Int? = null,
+    val hvacPower: Boolean? = null,
+    val hvacRecirculation: Boolean? = null,
+)
+
+/** 앱이 차량을 보는 유일한 창구. 구현: PleosVehicleGateway(SDK), FakeVehicleGateway(일반 AVD·테스트). */
+interface VehicleGateway {
+    val state: StateFlow<VehicleState>
+    fun start()
+    fun stop()
+    /** Idle 화면에서 10초마다 호출: 충전 스위치 등 리스너가 없는 값을 다시 읽는다. */
+    fun refresh()
+    suspend fun readSnapshot(): CabinSnapshot
+    suspend fun applyRest(seatMode: SeatMode, halfRecline: Boolean)
+    suspend fun restore(snapshot: CabinSnapshot)
+    suspend fun restoreSeat(snapshot: CabinSnapshot)
+    /** 시트 이동 중 화면 터치 → 즉시 정지. */
+    fun stopSeatMotion()
+}

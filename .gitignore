@@ -1,0 +1,17 @@
+# Android build
+app/build/
+app/.gradle/
+app/local.properties
+app/.idea/
+app/*.iml
+.gradle/
+.idea/
+
+# APK: 제출용 apk/ 폴더만 포함
+*.apk
+!apk/*.apk
+
+# 영상 원본
+docs/submission/video/raw_*
+
+.DS_Store
