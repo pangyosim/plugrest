@@ -83,7 +83,7 @@ body = {**{k: v for k, v in doc_proposal.items() if k <= 5}, 6: doc_s6[6]}
 
 EXCLUDE = {"14", "17"}  # PM 결정: 펫 모드·GS25 기사 → 결번으로 제외(재번호 안 함)
 refs = [r for r in re.findall(r"^\d+\. .*", open(f"{D}/submission/section6.md").read().split("## 7번")[1], re.M) if r.split(".")[0] not in EXCLUDE]
-body[7] = ["- 시연 영상: 첨부 파일 demo_fake_v1.mp4 (75초, Fake 차량 모드·시간 단축 데모)", "- GitHub 저장소(APK 포함): https://github.com/pangyosim/plugrest (APK: apk/TEAM_PlugRest_release.apk)", "- 앱 화면 시안: 첨부 파일 화면시안_충전쉼표.pdf (표지 + 화면 6장)", "", "**출처 목록** (본문의 [n] 번호와 연동)"] + refs
+body[7] = ["- 시연 영상: 첨부 파일 demo_fake_v1.mp4 (76초, Fake 차량 모드·시간 단축 데모)", "- GitHub 저장소(APK 포함): https://github.com/pangyosim/plugrest (APK: apk/TEAM_PlugRest_release.apk)", "- 앱 화면 시안: 첨부 파일 화면시안_충전쉼표.pdf (표지 + 화면 6장)", "", "**출처 목록** (본문의 [n] 번호와 연동)"] + refs
 body[8] = ["{숏폼 링크}"]
 
 shutil.copy(SRC, OUT)
