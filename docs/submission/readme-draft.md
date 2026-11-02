@@ -38,15 +38,15 @@
 ```bash
 git clone https://github.com/pangyosim/plugrest.git
 cd plugrest/app                    # app/ 폴더가 Gradle 루트(단일 모듈)
-./gradlew assembleRelease          # 결과: app/build/outputs/apk/release/PlugRest-release.apk
-./gradlew installDebug             # 실행 중인 에뮬레이터에 바로 설치 (PlugRest-debug.apk)
+./gradlew assembleRelease          # 결과: build/outputs/apk/release/PlugRest-release.apk (app/ 기준)
+./gradlew installDebug             # 실행 중인 에뮬레이터에 바로 설치 (build/outputs/apk/debug/PlugRest-debug.apk)
 ```
 - JDK 17, Android SDK 35가 필요합니다.
 - release APK는 디버그 키로 서명돼 있어 바로 `adb install`할 수 있습니다.
 
 | 빌드 옵션 | 기본값 | 설명 |
 |---|---|---|
-| `-Pdemo=false` | 데모 모드 켜짐 | 데모 모드는 "계산 중" 3분 → 20초, 충전 판정(잔량 상승 확인) 3분 → 10초로 줄입니다. 실제 시간으로 테스트하려면 이 옵션으로 끕니다. 10초 카운트다운은 동일합니다 |
+| `-Pdemo=false` | 데모 모드 켜짐 | 데모 모드는 "계산 중" 3분 → 20초, 충전 판정(잔량 상승 확인) 3분 → 20초로 줄입니다. 실제 시간으로 테스트하려면 이 옵션으로 끕니다. 10초 카운트다운은 동일합니다 |
 | `-Pfake=true` | 꺼짐 | Pleos 에뮬레이터에서도 Fake 차량 모드로 실행합니다 |
 - 의존성은 Google, Maven Central, Pleos Nexus(`https://nexus-playground.pleos.ai/repository/maven-releases/`)에서 받습니다. 별도 인증은 필요 없습니다.
 
@@ -58,7 +58,7 @@ cd plugrest/app                    # app/ 폴더가 Gradle 루트(단일 모듈)
 | 호스트 | Windows / Linux / macOS. Pleos 문서상 GPU 필수(최소 RTX 3060 Laptop 6GB / RX 6600M 8GB). Apple Silicon 지원은 공식 문서에 언급이 없습니다. Pleos 에뮬레이터가 실행되지 않는 환경에서는 Fake 차량 모드로 확인할 수 있습니다 |
 | 빌드 | Android Studio, JDK 17, AGP 8.8.2, Kotlin 2.0, compileSdk 35, minSdk 28 |
 | Pleos SDK | Vehicle 2.3.2 (Gear 도메인은 2.3.2부터), TextToSpeech 3.3.1 (ON_DEVICE, 한국어) |
-| 네트워크 | 실행 중에는 불필요 (TTS ON_DEVICE 모드, 서버 없음) |
+| 네트워크 | 필수 아님(서버 없음, 음성 안내는 ON_DEVICE 모드). 앱 자체는 외부로 데이터를 보내지 않습니다. 음성 안내 SDK가 서비스 검증 통신을 할 수 있으나, 앱은 차량·개인정보를 넘기지 않습니다. |
 | 계정 / 로그인 | 없음 |
 
 - **Pleos 에뮬레이터 실측 체크리스트**: SDK 신호가 에뮬레이터에서 실제로 동작하는지 확인할 항목은 [docs/research/05-sdk-signatures.md §8](docs/research/05-sdk-signatures.md#8-prd-대비-갭과-대안-pm-확인-필요)에 정리돼 있습니다.
@@ -92,7 +92,7 @@ cd plugrest/app                    # app/ 폴더가 Gradle 루트(단일 모듈)
   - 2번 전에 뒷좌석 착좌를 **ON**으로 두면 등받이를 절반만 젖힙니다.
   - 2번 다음에 **Brake**를 밟으면 시트가 즉시 복원됩니다.
   - 2번 다음에 **Gear D**로 바꾸면 모든 제어가 멈추고 시트는 복원하지 않습니다. 다시 **Gear P**로 바꾸면 "되돌리기 / 그대로" 카드가 뜹니다.
-- 제출 APK는 **데모 모드가 켜진 상태**이며, 앱 상단 라벨로 데모 모드임을 표시합니다. "계산 중"은 20초, 충전 판정은 10초 걸립니다. 실제 시간(계산 중 3분·잔량 상승 확인 3분)으로 보려면 `-Pdemo=false`로 빌드합니다.
+- 제출 APK는 **데모 모드가 켜진 상태**이며, 앱 상단 라벨로 데모 모드임을 표시합니다. "계산 중"과 충전 판정은 각각 20초 걸립니다. 실제 시간(계산 중 3분·잔량 상승 확인 3분)으로 보려면 `-Pdemo=false`로 빌드합니다.
 
 ## 권한
 
@@ -109,7 +109,7 @@ cd plugrest/app                    # app/ 폴더가 Gradle 루트(단일 모듈)
 | `CAR_WINDOWS` | 하차 체크용 창문 위치 읽기 |
 | `TTS_SERVICE` | 음성 안내(ON_DEVICE) |
 
-- 개인정보·위치 데이터는 수집하지 않습니다. 외부 전송도 없습니다.
+- 개인정보·위치 데이터는 수집하지 않습니다. 앱 자체는 외부로 데이터를 보내지 않습니다. 음성 안내 SDK가 서비스 검증 통신을 할 수 있으나, 앱은 차량·개인정보를 넘기지 않습니다.
 
 ## APK 위치
 - 저장소 내 `apk/` 폴더: [`apk/TEAM_PlugRest_release.apk`](apk/TEAM_PlugRest_release.apk) (약 38MB)
