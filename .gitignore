@@ -16,3 +16,10 @@ docs/submission/video/raw_*
 
 .DS_Store
 app/.kotlin/
+
+# 제출 최종본(실명·연락처·서명 포함) 커밋 금지
+docs/submission/*_final.docx
+
+# 개인정보가 들어간 최종 제출본은 커밋 금지
+docs/submission/*_final.docx
+docs/submission/*_final.pdf

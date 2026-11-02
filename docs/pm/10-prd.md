@@ -56,7 +56,7 @@ EV 충전 대기 시간 동안 원탭으로 시트·조명·공조를 '휴식 �
 | 공조 | HVAC 온도·풍량 set/get | CAR_CLIMATE / CONTROL_CAR_CLIMATE |
 | 하차 체크 | Window `registerWindowPosition`, Light 상태, Seat occupancy | **CAR_WINDOWS**, CAR_LIGHTS, CAR_SEATS |
 | 음성 | TextToSpeech(ctx, Mode.ON_DEVICE) → `setLocale(Locale.KOREA)` → `speak` | pleos.car.permission.TTS_SERVICE **[v0.4]** |
-- 모든 set 전 `checkXxxCapabilities`로 지원·범위 확인, 미지원이면 해당 항목만 건너뛰고 UI에 "이 차량 미지원" 표시.
+- **[구현 확정]** set을 시도하고 미지원·권한 오류(onFailed)가 오면 해당 항목만 건너뛰고 UI에 "이 차량 미지원" 표시. `checkXxxCapabilities` 사전 확인은 에뮬레이터 실측 후 2차 PT 개선 항목(값 범위가 차종별로 다른 Seat/Light에 우선 적용).
 - **[v0.5]** Pleos 심사 가이드 명문: "Vehicle SDK 퍼미션은 Pleos App Market과 사전 협의 및 승인된 경우에만 선언할 수 있다" — 읽기 포함 전체, 제어 권한은 별도 심사. 제안서 §5에 "사용 권한 목록 + 사전 협의 신청 계획"을 명시. 미승인 대비: 시트는 "권장 자세 안내 + `selectSeatMemory`"로 대체.
 - **[v0.5]** 차속: Vehicle SDK엔 없지만 AAOS `CarPropertyManager`의 `PERF_VEHICLE_SPEED`로 읽을 수 있음. 필요 시 보조 신호로 사용, "속도 신호가 없다"고 말하지 말 것.
 
@@ -68,8 +68,8 @@ EV 충전 대기 시간 동안 원탭으로 시트·조명·공조를 '휴식 �
 - 샘플앱과 동일 스택: AGP 8.8.2 / Kotlin 2.0 / Compose BOM 2024.04 / compileSdk 35 / minSdk 28 / Vehicle 2.3.2.
 
 ## 7. Virtual Console 시연 스크립트 (2분)
-**[v0.5] 데모 모드**: 빌드 설정(BuildConfig.DEMO 또는 숨김 토글)으로 "계산 중" 3분→20초, 충전 판정(잔량 상승 확인) 3분→10초로 단축. 10초 카운트다운은 그대로. 시연 멘트에서 단축했음을 밝힌다.
-1. Motion > Gear = P, Energy > Charge Port = Open, SOC 50% → 10초(데모 단축) 뒤 SOC +1 → "충전 중" 판정, 앱 버튼 활성 확인 **[v0.5]**
+**[v0.5] 데모 모드**: 빌드 설정(BuildConfig.DEMO 또는 숨김 토글)으로 "계산 중" 3분→20초, 충전 판정(잔량 상승 확인) 3분→20초로 단축. 10초 카운트다운은 그대로. 시연 멘트에서 단축했음을 밝힌다.
+1. Motion > Gear = P, Energy > Charge Port = Open, SOC 50% → 20초(데모 단축) 안에 SOC +1 → "충전 중" 판정, 앱 버튼 활성 확인 **[v0.5]**
 2. 목표 80% 탭 → 휴식 모드 시작. Console에서 Seat/Light/HVAC 값이 바뀐 것 보여줌. TTS 재생.
 3. SOC 슬라이더를 10초 간격으로 5씩 50→79 → 처음 3분 "계산 중" 후 링·남은시간 갱신 **[v0.3]**
 4. SOC 80 → TTS 완료 안내, Console에서 시트·조명 복원 확인
