@@ -240,3 +240,39 @@ PRD §4.4·§4.5: 제한 진입(UX 제한 또는 기어≠P) 시 **복원 없이
 
 ### 결론
 **차단 0건.** N1~N6 모두 해소. 남은 것: **C1(PM 결정)**, 처리방침 §2·§3 보완과 §4 문구 수정, C2(선택). 에뮬레이터 수동 확인(리클라인 중 D → Seat 정지)은 사용자 체크리스트(05 §11)로 이관된 것을 확인함.
+
+---
+
+## 4차 확인 (2026-11-03, C1·열선 제거)
+테스트 결과 파일: RestSessionTest 10 + FakeVehicleGatewayTest 3 = **13/13 통과**(2026-11-02T23:28).
+
+| 항목 | 결과 | 확인 |
+|---|---|---|
+| C1 | 해소 | `RestSession.evaluate` Done 분기: `포트 false && (restored \|\| snapshot == null)`일 때만 reset, 미복원 Done은 `sessionStartedAt` 기준 2시간에 reset. 테스트가 현실 순서(포트 분리 → Restoring 중 D → Done → 포트 빠진 채 P → 제안 → 되돌리기 → 포트 분리로 Idle)로 교체됨 + 만료 테스트 추가 |
+| C2 | 해소 | (3차 이후 유지) |
+| 열선 제거 | 해소 | `SeatMode { NONE, VENT }`, `seatHeat`·`SEAT_HEAT`·Fake 분기·"heat" 키 grep 0건. 남은 것은 주석 1줄(`PleosVehicleGateway.kt:204` "통풍/열선") — 정리 권장(낮음) |
+| SessionStore 방어 | 해소 | `runCatching { SeatMode.valueOf(…) }.getOrDefault(NONE)` |
+| 처리방침 "열선" | 해소 | 0건 |
+
+### 새로 발견
+- **D1 (중간)** C1 변경으로 **"취소" 경로가 바뀜**. `cancelRestore()`는 `Done(restored=false)`만 만들고 스냅샷을 남긴다. 그래서 사용자가 카운트다운 중 "취소"(= "지금 상태 그대로 끝내기", PRD v0.4) → 케이블 분리 → 주행 → 재정차하면 **원치 않은 "되돌릴까요?" 제안 + TTS**가 나오고, 그동안 FGS도 유지된다(최대 2시간). C1 이전에는 포트 분리로 reset되어 이 문제가 없었다.
+  수정안(1줄): `cancelRestore()`에서 `snapshot = null` — 사용자가 복원을 명시적으로 거절했으므로 되돌릴 대상이 없음 → 포트 분리 시 reset, 제안 없음. 테스트: `cancelDuringCountdown_leavesCabinAsIs`에 "포트 분리 → D → P → Idle, offerRestore 없음" 3줄 추가.
+- **D2 (낮음)** Done의 2시간 만료는 `evaluate`가 불릴 때(차량 상태 변화)만 검사됨. 시동 OFF로 상태 변화가 없으면 Done과 FGS가 2시간을 넘겨 남을 수 있음. 서비스의 Done 분기에 `delay(남은 시간)` 후 `session.evaluate(state.value)` 1회로 충분.
+
+### 결론
+차단 0건. D1은 제출 전 수정 권장(1줄 + 테스트 3줄), D2·주석은 선택.
+
+---
+
+## 5차 확인 (2026-11-03, D1·D2)
+테스트 결과 파일 **13/13 통과**(2026-11-02T23:30).
+
+| 항목 | 결과 | 확인 |
+|---|---|---|
+| D1 취소 후 원치 않는 제안 | 해소 | `cancelRestore()`에서 `snapshot = null` → 포트 분리 시 reset, 제안 없음. 테스트에 "포트 분리 → D → P → Idle" 추가 |
+| D2 상태 변화 없는 2시간 만료 | 해소 | `sessionRemainingMs()` + 서비스 Done(미복원) 분기의 1회 `expiry` 타이머, Idle 전이 시 cancel |
+| 주석 | 해소 | `PleosVehicleGateway.kt:204` "통풍(칩 선택)" |
+
+참고(조치 불필요): 미복원 Done → 되돌리기 → Done(restored)로 바뀌어도 `expiry`는 남아 2시간 시점에 `evaluate` 1회를 호출할 뿐(그때 Done이면 reset, 아니면 무동작) — 무해.
+
+**결론: 코드 리뷰 잔여 0건.** 남은 확인은 Pleos 에뮬레이터 수동 체크(리클라인 중 D → Seat 정지, 05 §11)와 33-submission-check의 X1(빌드 주석)·`.gitignore` 항목.

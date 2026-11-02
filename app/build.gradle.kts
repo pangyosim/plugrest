@@ -15,7 +15,7 @@ android {
         targetSdk = 35
         versionCode = 1
         versionName = "0.1.0"
-        // 데모 모드: "계산 중" 3분→20초, 충전 판정 60초→10초. ./gradlew -Pdemo=false 로 끔.
+        // 데모 모드: "계산 중" 3분→20초, 충전 판정(SOC 상승 창) 3분→20초. ./gradlew -Pdemo=false 로 끔.
         buildConfigField("boolean", "DEMO", (project.findProperty("demo") ?: "true").toString())
         // Fake 차량 강제: ./gradlew -Pfake=true (Pleos 서비스가 없으면 자동으로 Fake)
         buildConfigField("boolean", "FORCE_FAKE", (project.findProperty("fake") ?: "false").toString())

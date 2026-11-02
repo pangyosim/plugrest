@@ -21,5 +21,4 @@ app/.kotlin/
 docs/submission/*_final.docx
 
 # 개인정보가 들어간 최종 제출본은 커밋 금지
-docs/submission/*_final.docx
 docs/submission/*_final.pdf
