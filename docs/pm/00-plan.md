@@ -28,7 +28,7 @@
 ## 사용자(사람)만 할 수 있는 일
 - 참가 부문(대학/일반), 팀 구성·이름, 서명 → docx 01/03/04
 - Android Studio에서 Pleos 에뮬레이터 설치 (docs/research/03 참고)
-- GitHub repo 생성·심사 계정 초대, 이메일 제출
+- ~~GitHub repo 생성~~ (완료: https://github.com/pangyosim/plugrest, 공개) · 이메일 제출
 - 외부 코드 클론/빌드 권한 허용 (auto mode에서 에이전트 차단됨)
 - 앱명 최종 확인(약 10분): KIPRIS 9류·42류 "충전쉼표", "Plug & Rest" 검색, Instagram 핸들 plugrest, .app 도메인 — 절차는 docs/submission/name-check.md
 - 숏폼 게시용 팀/앱 계정 생성(실명 미노출)
@@ -56,3 +56,4 @@
 - 2026-11-03: 코드 리뷰(32-code-review.md) 차단 2(서비스 조기 stopSelf, 제한 진입 시 시트 제어 미중단)·높음 4 → 개발 선수정 지시, 스크린샷·녹화는 그 뒤로. 개인정보처리방침은 마케팅이 작성.
 - 2026-11-03: 개인정보처리방침 초안 완료(docs/submission/privacy-policy.md, 코드 대조 완료). 문의 이메일·시행일 플레이스홀더는 사용자 기입.
 - 2026-11-03: 코드 리뷰 차단·높음 수정 완료(테스트 8/8, B1은 AVD 실측 확인). 스크린샷 6장·Fake 녹화 81초·apk/·.gitignore 준비. 결정: 충전 판정 90초 히스테리시스, Done 10분 타임아웃. 다음: 검수 재검, 디자인 2차 대조, 기획 시안 PDF·docx, 마케팅 영상 편집.
+- 2026-11-03: git init + 첫 커밋 + 공개 저장소 https://github.com/pangyosim/plugrest 푸시(사용자 지시). 커밋 author는 GitHub noreply 이메일로 설정(개인 이메일 비노출). 개발 세션 사용 한도 도달 → 재촬영은 서브에이전트가 수행. 영상 v1(demo_fake_v1.mp4 75초, shortform_v1.mp4 45초, 무음) 완료.

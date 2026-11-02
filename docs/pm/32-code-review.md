@@ -199,3 +199,44 @@ PRD §4.4·§4.5: 제한 진입(UX 제한 또는 기어≠P) 시 **복원 없이
 
 ### 결론
 **차단 0건.** 2차 PT·제출 기준으로 진행 가능. 제출 전 권장: N1·N3(크래시/미복원), N4. PM 결정 필요: M1 충전 판정식, M3 Done 자동 종료, PRD §6 만료 문구.
+
+---
+
+## 3차 재검 (2026-11-03, N1~N6 + PM 후속 결정 + 개인정보처리방침 대조)
+테스트 결과 파일: RestSessionTest 9 + FakeVehicleGatewayTest 3 = **12/12 통과**(2026-11-02T23:12).
+
+### 코드
+| ID | 결과 | 확인 |
+|---|---|---|
+| N1 | 해소 | `PleosVehicleGateway.kt:229-231, 253-256` — 이동 전에 0으로 만들지 않고 finally에서 BACKWARD +moved / FORWARD −moved(0 하한). Fake `:93, 113-116` 동일. 테스트 추가 |
+| N2 | 해소 | `rearOccupancy()` `:286-287` — ROW_2_LEFT 미확인이면 null |
+| N3 | 해소 | 읽기 메서드 `socRisingWithin`·`isCharging`·`blockReason`·`remainingMinutes`에 `@Synchronized`, `slopePctPerMin`은 동기화된 메서드 안에서만 호출 |
+| N4 | 해소 | `start()` 멱등(`:67-69`), `MainActivity.kt:28-33` onStart→start / onStop→Idle이면 stop, `RestService.onDestroy`에서 Activity가 안 보이면 stop. narrator 미해제는 프로세스 수명 객체라 수용 |
+| N5 | 해소 | `Screens.kt:202-204` silent일 때 "되돌리는 중…"만 표시 |
+| N6 | 해소 | `RestService.kt:32-35` CoroutineExceptionHandler → stopSeatMotion·reset·store.clear·stopSelf |
+| M1 충전 판정 | 해소(PM 결정 그대로) | `RestSession.kt:65-72` 포트 == true(미지원이면 생략) AND (3분 상승 OR 스위치), 포트 null은 충전 아님, 90초 유지, 분리 시 즉시 해제. 창은 `App.kt` 3분 / 데모 20초 |
+| M3 Done 종료 | 해소(PM 결정 그대로) — **단 C1 참고** | 재안내 3회 뒤 reset(`RestService.kt:101`), 포트 분리 시 reset(`RestSession.kt:135`) |
+
+### 새로 발견
+- **C1 (중간, PM 결정 필요) — 포트 분리 시 Done 종료가 "주행 후 재정차 시 되돌리기 제안"(PRD v0.5 §4.4)을 사실상 무력화.**
+  `RestSession.kt:134-138`: Done에서 `chargePortConnected == false`이면 바로 `reset()`(스냅샷 폐기)한다. 그런데 실제로는 **충전 케이블을 뽑아야 주행할 수 있으므로**, 미복원 상태로 주행하는 모든 현실적 경로에서 포트는 이미 false다. 예: 포트 분리 → Restoring(CHARGING_STOPPED) → 10초 안에 D → Done(restored=false) → 다음 평가에서 포트 false → reset. 따라서 offerRestore는 발생하지 않는다. 단위테스트 `drivingRestriction_…_offersOnceWhenParked`는 **포트 연결 상태로 주행**하는 비현실적인 입력이라 통과한다(`RestSessionTest.kt:16, 64-71`).
+  수정안(택1): ① 포트 분리 reset은 `p.restored || snapshot == null`일 때만 하고, 미복원 Done은 제안이 처리될 때까지(또는 2시간 만료까지) 유지 → 서비스·알림도 그동안 유지됨. ② 제안 기능을 PRD에서 삭제하고 Done(restored=false) 화면 문구로 대체("시트를 직접 조정해 주세요"). 검수 권장은 ①. 테스트는 `charging.copy(gear = DRIVE, chargePortConnected = false)`로 바꿔 한 번 더.
+- **C2 (낮음)** `PleosVehicleGateway.stop()`은 `vehicle.release()`를 동기로 호출하는데, 직전 `refresh()`가 띄운 `scope.launch`가 아직 이전 `vehicle`로 get을 돌고 있을 수 있음(Activity onStop 직후). 크래시 가능성은 낮지만(get이 예외를 흡수) `stop()`에서 진행 중인 refresh Job을 취소하면 깔끔함.
+
+### 개인정보처리방침(docs/submission/privacy-policy.md) ↔ 코드 대조
+| 방침 문장 | 코드 | 판정 |
+|---|---|---|
+| §1 계정·위치·광고 ID·분석·VIN 수집 없음 | 해당 API·권한·라이브러리 0건(`getVINInfo` 미호출, 위치 권한 없음) | ○ |
+| §2 처리 항목 표 | SOC·포트·기어·브레이크·UX 제한·시트(등받이/통풍/열선)·조명·공조·착좌(ROW_2)·창문 = 일치. **충전 스위치 상태(`getEvChargeSwitchState`)가 표에 없음**, 공조 **전원·내/외기** 설정도 스냅샷 대상인데 "온도·풍량"만 적힘 | △ 표에 "충전 스위치 상태", "공조 전원·내외기"를 추가 |
+| §2 착좌는 여부만, 식별 안 함 | Boolean만 사용 | ○ |
+| §3 스냅샷 + 목표·시작 시각만 저장 | `SessionStore`는 그 외에 `seatMode`, `halfRecline`도 저장 | △ "휴식 설정(시트 모드)"을 문장에 추가 |
+| §3 종료 시 즉시 삭제 | Done 진입 시 `store.clear()`(`RestService.kt:92`), 예외 시에도 clear | ○ (Restoring 10초 동안은 남아 있음 — 표현상 허용 범위) |
+| §3 2시간 후 다음 실행 때 삭제 | `App.kt` resume 실패 시 `store.clear()` | ○ |
+| §3 백업 제외 | `allowBackup="false"` | ○ |
+| **§4 "앱이 외부 서버와 통신하지 않습니다" / "앱 기능에는 이 권한(INTERNET)을 사용하지 않습니다"** | 앱 코드 네트워크 0건은 맞음. 그러나 INTERNET은 TTS SDK가 "CCG Validation" 목적으로 선언한 것이라 **SDK가 실제로 통신하는지는 미확인**. "사용하지 않는다"는 단정은 반증 리스크 | **× 문구 수정**: "앱 자체는 외부로 데이터를 보내지 않습니다. 음성 안내 SDK(Pleos TextToSpeech)는 서비스 검증을 위해 네트워크를 사용할 수 있으며, 이 앱은 그 과정에 차량 정보나 개인정보를 넘기지 않습니다." — 에뮬레이터 트래픽 확인 후 확정 |
+| §6 종료 버튼·데이터 삭제 | 화면 "종료" 있음 | ○ |
+| §7·시행일 | 플레이스홀더 `{…}` | 제출 전 채울 것 |
+| 로그 | `Log.i("Narrator", text)`는 안내 문구만, 차량 상태 경고 로그에 개인정보 없음 | ○ |
+
+### 결론
+**차단 0건.** N1~N6 모두 해소. 남은 것: **C1(PM 결정)**, 처리방침 §2·§3 보완과 §4 문구 수정, C2(선택). 에뮬레이터 수동 확인(리클라인 중 D → Seat 정지)은 사용자 체크리스트(05 §11)로 이관된 것을 확인함.
