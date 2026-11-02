@@ -81,10 +81,8 @@ doc_proposal = sections(open(f"{D}/submission/proposal.md").read())
 doc_s6 = sections(open(f"{D}/submission/section6.md").read())
 body = {**{k: v for k, v in doc_proposal.items() if k <= 5}, 6: doc_s6[6]}
 
-REPLACE = {"1": "1. 국토교통부 「2026년 상반기 자동차 등록 현황」 보도, 경북매일 (2026.07.30) — https://kbmaeil.com/article/20260730500195"}  # PM X3: section6.md 목록보다 우선
 EXCLUDE = {"14", "17"}  # PM 결정: 펫 모드·GS25 기사 → 결번으로 제외(재번호 안 함)
 refs = [r for r in re.findall(r"^\d+\. .*", open(f"{D}/submission/section6.md").read().split("## 7번")[1], re.M) if r.split(".")[0] not in EXCLUDE]
-refs = [REPLACE.get(r.split(".")[0], r) for r in refs]
 body[7] = ["- 시연 영상: 첨부 파일 demo_fake_v1.mp4 (75초, Fake 차량 모드·시간 단축 데모)", "- GitHub 저장소(APK 포함): https://github.com/pangyosim/plugrest (APK: apk/TEAM_PlugRest_release.apk)", "- 앱 화면 시안: 첨부 파일 화면시안_충전쉼표.pdf (표지 + 화면 6장)", "", "**출처 목록** (본문의 [n] 번호와 연동)"] + refs
 body[8] = ["{숏폼 링크}"]
 

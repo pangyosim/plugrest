@@ -2,7 +2,7 @@
 # 시연 영상(가로 1920x1080)과 숏폼(세로 1080x1920 45초)을 raw_fake_01.mp4에서 다시 만든다.
 # 필요: ffmpeg, swift (macOS 기본). 사용: ./build_video.sh [원본.mp4]
 # ponytail: ffmpeg에 drawtext/libass가 없어서 자막은 render_text.swift가 PNG로 만들고 overlay/stack으로 합성한다.
-#           음성 없음(TTS는 Pleos 에뮬레이터로 녹화할 때 넣는다). 원본 구간(초)은 raw_fake_01 기준이라 재녹화하면 SEG 표의 시간을 고친다.
+#           음성 없음(TTS는 Pleos 에뮬레이터로 녹화할 때 넣는다). 원본 구간(초)은 raw_fake_01(2026-11-03 08:25 녹화, 79초) 기준이라 재녹화하면 SEG 표의 시간을 고친다.
 set -euo pipefail
 cd "$(dirname "$0")"
 SRC="${1:-raw_fake_01.mp4}"
@@ -64,24 +64,24 @@ join() { # 출력 조각...
 
 # ---------- 3) 시연 영상 (약 75초) ----------
 card title.png 4 "$T/a0.mp4"
-seg 0  13 1 d1.png "$T/a1.mp4" demo   # 충전 포트 ON → 버튼 활성
-seg 13 23 1 d2.png "$T/a2.mp4" demo   # 원탭 시작, 패널에 SDK 호출 로그
-seg 23 33 2 d3.png "$T/a3.mp4" demo   # 계산 중… (2배속)
-seg 33 44 1 d4.png "$T/a4.mp4" demo   # 약 30분 → 5분
-seg 44 58 1 d5.png "$T/a5.mp4" demo   # 10초 카운트다운 → 복원
-seg 58 70 1 d6.png "$T/a6.mp4" demo   # 목표 80% 도달 + 하차 체크
+seg 0  11 1 d1.png "$T/a1.mp4" demo   # 충전 포트 ON → 버튼 활성
+seg 11 20 1 d2.png "$T/a2.mp4" demo   # 원탭 시작, 패널에 SDK 호출 로그
+seg 20 34 2 d3.png "$T/a3.mp4" demo   # 계산 중… (2배속)
+seg 34 48 1 d4.png "$T/a4.mp4" demo   # 약 30분 → 5분
+seg 48 61 1 d5.png "$T/a5.mp4" demo   # 10초 카운트다운 → 복원
+seg 61 73 1 d6.png "$T/a6.mp4" demo   # 목표 80% 도달 + 하차 체크
 card end.png 6 "$T/a7.mp4"
 join demo_fake_v1.mp4 "$T"/a{0..7}.mp4
 
 # ---------- 4) 숏폼 (45초, shortform.md 장면표) ----------
 card s_hook.png 2 "$T/b1.mp4"
-seg 6  11 1     s2.png "$T/b2.mp4" short  # 충전 감지
-seg 11 14 1     s3.png "$T/b3.mp4" short  # 80% 원탭
-seg 14 23 1     s4.png "$T/b4.mp4" short  # 시트·조명·공조 변경 로그
-seg 23 28 1     s5.png "$T/b5.mp4" short  # 계산 중 + 시작 안내
-seg 28 44 2.286 s6.png "$T/b6.mp4" short  # 남은 시간 갱신 (약 2.6배속 → 7초)
-seg 44 56 2     s7.png "$T/b7.mp4" short  # 카운트다운 (2배속 → 6초)
-seg 60 64 1     s8.png "$T/b8.mp4" short  # 창문 열림 체크
+seg 4  9  1     s2.png "$T/b2.mp4" short  # 충전 감지
+seg 9  12 1     s3.png "$T/b3.mp4" short  # 80% 원탭
+seg 12 21 1     s4.png "$T/b4.mp4" short  # 시트·조명·공조 변경 로그
+seg 21 26 1     s5.png "$T/b5.mp4" short  # 계산 중 + 시작 안내
+seg 26 48 3.143 s6.png "$T/b6.mp4" short  # 남은 시간 갱신 (약 3.1배속 → 7초)
+seg 48 60 2     s7.png "$T/b7.mp4" short  # 카운트다운 (2배속 → 6초)
+seg 64 68 1     s8.png "$T/b8.mp4" short  # 창문 열림 체크
 card s_end.png 4 "$T/b9.mp4"
 join shortform_v1.mp4 "$T"/b{1..9}.mp4
 

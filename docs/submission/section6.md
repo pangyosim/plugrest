@@ -23,7 +23,7 @@
 
 ## 7번 참고자료용 출처 목록 1~20 (research/04에서 그대로 복사)
 
-1. 뉴스1(국토교통부 통계) "전기차 누적등록 첫 100만대 돌파" (2026.07) — https://www.clien.net/service/board/news/19238114
+1. 국토교통부 「2026년 상반기 자동차 등록 현황」 보도, 경북매일 (2026.07.30) — https://kbmaeil.com/article/20260730500195
 2. 뉴스스페이스 "2025년 전기차 브랜드별 판매" (2026.01.20) — https://www.newsspace.kr/news/article.html?no=12025
 3. 파이낸셜뉴스, KAMA 2025 전기차 신규등록 — https://www.fnnews.com/news/202601201405544489
 4. 현대차그룹 뉴스룸, Pleos Connect 공개 — https://www.hyundaimotorgroup.com/ko/news/hyundai-motor-group-redefines-in-vehicle-experience-with-pleos-connect-next-generation-infotainment-system
