@@ -276,3 +276,27 @@ PRD §4.4·§4.5: 제한 진입(UX 제한 또는 기어≠P) 시 **복원 없이
 참고(조치 불필요): 미복원 Done → 되돌리기 → Done(restored)로 바뀌어도 `expiry`는 남아 2시간 시점에 `evaluate` 1회를 호출할 뿐(그때 Done이면 reset, 아니면 무동작) — 무해.
 
 **결론: 코드 리뷰 잔여 0건.** 남은 확인은 Pleos 에뮬레이터 수동 체크(리클라인 중 D → Seat 정지, 05 §11)와 33-submission-check의 X1(빌드 주석)·`.gitignore` 항목.
+
+---
+
+## 6차 확인 (2026-11-03, capability 사전 확인 + clamp)
+테스트 결과 파일 **14/14 통과**(2026-11-02T23:39). 대상: `PleosVehicleGateway.kt:51-110, 226, 246`, `VehicleGateway.kt:37`, `FakeVehicleGatewayTest.kt:55-60`.
+
+| 확인 | 결과 |
+|---|---|
+| `start()` 끝에서 `checkCapabilities()` 1회(비동기) — Seat 등받이 이동, 앰비언트 밝기(운전석 AreaBounds → `ambientRange`), 앰비언트 색 | ○ |
+| WRITE/READ_WRITE 아님 또는 운전석 영역 없음 → `unsupported` 추가 → `set()` 게이트가 건너뜀 | ○ 기존 onFailed 경로도 유지(이중) |
+| `SeatArea` 비교를 `values.contentEquals`로 | ○ (data class가 아니면 `==`는 참조 비교라 맞는 처리) |
+| check 호출이 실패하거나 타임아웃이면 | ○ `get()`이 null → 판정 보류, SKIP 코드면 `fail()`이 미지원 표시 — 보수적 |
+| `clampTo` 순수 함수 + 테스트 4케이스 | ○ |
+| 시작 직후 check가 끝나기 전에 휴식 시작 | ○ 무해(범위 null → clamp 안 함, set 실패 시 기존대로 건너뜀) |
+
+### 새로 발견 (모두 낮음)
+- **E1** `VehicleGateway.kt:37` `clampTo` — 차량이 `minValue > maxValue`(잘못된 bounds)를 주면 `IntRange`가 비어 `coerceIn`이 `IllegalArgumentException`("Cannot coerce value to an empty range") → applyRest가 control Job 안에서 예외 → N6 핸들러가 세션을 reset·종료(크래시는 아니지만 휴식 시작 실패). 수정: `range?.takeIf { !it.isEmpty() }?.let { value.coerceIn(it) } ?: value` + 테스트 1줄 `assertEquals(20, clampTo(20, 50..10))`.
+- **E2** `PleosVehicleGateway.kt:104-106` — **색** capability가 쓰기 불가면 `Feature.AMBIENT` 전체를 미지원 처리 → 밝기 조절까지 막힘. 색만 막힌 차종에서 과잉 차단. 선택: `Feature.AMBIENT_COLOR` 분리, 또는 현행 유지(보수적이라 안전 문제 없음).
+- **E3** `start()`가 Activity `onStart`마다 불리므로 check 3건도 매번 재호출. 비용 미미하나 결과는 캐시돼 있으니 `ambientRange != null`이면 생략 가능(선택).
+
+### 문서 정합 (기획)
+docx §5·PRD §5·PT `:152`는 "check…Capabilities 사전 확인을 **추가할 계획/예정**"으로 되어 있음 → 이제 **등받이·앰비언트는 구현됨**. 과소 기술이라 사실 오류는 아니지만 정확하게: "등받이·앰비언트 조명은 시작 시 check…Capabilities로 쓰기 가능 여부와 밝기 허용 범위를 확인하고(범위 밖 값은 맞춰 보냄), 나머지 도메인은 set 실패 시 건너뛴다. (에뮬레이터 실측 전)". PT 슬라이드 6의 "check → set → register" 강조도 이 범위라면 사용 가능.
+
+**결론: 차단 0건.** E1은 1줄 수정 권장, E2·E3 선택.

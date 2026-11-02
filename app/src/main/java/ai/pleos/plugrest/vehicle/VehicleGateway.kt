@@ -34,7 +34,7 @@ val VehicleState.drivingRestricted: Boolean
     get() = uxRestricted || (gear != null && gear != Gear.PARK && gear != Gear.UNKNOWN)
 
 /** capability로 받은 범위가 있으면 그 안으로 자른다. 범위를 모르면 그대로. */
-fun clampTo(value: Int, range: IntRange?): Int = range?.let { value.coerceIn(it) } ?: value
+fun clampTo(value: Int, range: IntRange?): Int = range?.takeIf { !it.isEmpty() }?.let { value.coerceIn(it) } ?: value // 빈 범위(min>max)는 무시
 
 /** 휴식 모드 시작 전 차량 상태. 종료 시 그대로 되돌린다. null = 읽지 못함(복원도 건너뜀). */
 data class CabinSnapshot(
