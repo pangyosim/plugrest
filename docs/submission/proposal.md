@@ -23,7 +23,7 @@
 | 기능 | 해결하는 문제 | 차량 특화 요소 (모바일로 불가능한 이유) |
 |---|---|---|
 | **충전 감지 → 휴식 모드 버튼** | 충전을 시작한 뒤 따로 설정해야 하는 번거로움 | 충전 포트 연결에 더해 배터리 잔량 상승이나 충전 스위치 ON을 확인해 실제 충전 중인지 판단하고, 충전 중일 때만 "휴식 모드 시작"을 켠다. 폰은 이 신호를 받을 수 없다 |
-| **원탭 휴식 모드** | 시트·조명·공조를 하나씩 수동 조작 | 리클라인 전에 뒷좌석 착좌를 먼저 확인하고, 운전석 뒤에 사람이 있으면 절반만 젖힌다. 앰비언트 조명을 어둡고 따뜻한 색으로 바꾸고, 실내등을 끄고, 공조를 22°C·풍량 1단·외기 유입으로 맞춘다(장시간 재순환으로 인한 CO₂ 상승 방지). 통풍·열선 시트는 선택(기본 OFF) |
+| **원탭 휴식 모드** | 시트·조명·공조를 하나씩 수동 조작 | 리클라인 전에 뒷좌석 착좌를 먼저 확인하고, 운전석 뒤에 사람이 있으면 절반만 젖힌다. 앰비언트 조명을 어둡고 따뜻한 색으로 바꾸고, 실내등을 끄고, 공조를 22°C·풍량 1단·외기 유입으로 맞춘다(장시간 재순환으로 인한 CO₂ 상승 방지). 통풍 시트는 선택(기본 OFF) |
 | **SOC → 남은 분** | 언제 끝나는지 몰라 화면과 타이머를 계속 확인함 | 처음 3분은 "계산 중"으로 두고, 이후 최근 5분 SOC 상승률로 남은 시간을 5분 단위로 보여 준다. 80% 이후 충전 속도가 느려지는 구간은 따로 보정한다. 목표(80/90%)는 앱이 SOC를 감시해 도달을 판단하며, **사용자의 차량 충전 한도 설정은 건드리지 않는다** |
 | **도달 깨움 + 자동 복원** | 잠들어 목표 도달을 놓치고 충전기를 계속 차지함 | "목표 80%에 도달했습니다"라고 음성으로 깨우고, **10초 카운트다운**(화면에 "취소" 버튼)을 거쳐 시트·조명·공조를 시작 전 상태로 되돌린다. 취소하면 지금 상태 그대로 둔다. 완료 화면에서 확인하지 않으면 30초 간격으로 최대 3회 다시 알린 뒤 스스로 종료한다. 시트가 움직이는 중에 화면을 터치하면 즉시 멈춘다 |
 | **하차 체크 카드** | 창문·실내등을 켜 둔 채 하차, 뒷좌석 확인 누락 | 창문 위치·실내등 상태·좌석 착좌를 읽어 "조수석 창문 열림", "뒷좌석에 사람이 있어요"처럼 한 줄로 안내한다 |
@@ -61,7 +61,7 @@
 |---|---|---|
 | 충전 감지·목표 도달 | Vehicle.EvBattery `registerEvChargePortOpen`, `registerEvBatteryStateOfCharge` / 보조 `getEvChargeSwitchState` | CAR_ENERGY |
 | 주행 제한 판정 | AAOS `CarUxRestrictionsManager.isRequiresDistractionOptimization()` / 보조: `Vehicle.getGear()` → `Gear.registerGearSelection` (`VehicleGear.GEAR_PARK` 여부) / 출발 의도: `Brake.registerBrakePedalStatus` | CAR_DRIVE |
-| 시트 | Seat `moveSeatBackrestAngle`, `setHvacSeatVentilation`, `setHvacSeatTemperature`, `getCurrentSeatOccupancy`(리클라인 전 뒷좌석 점검) | CAR_SEATS / CONTROL_CAR_SEATS |
+| 시트 | Seat `moveSeatBackrestAngle`, `setHvacSeatVentilation`, `getCurrentSeatOccupancy`(리클라인 전 뒷좌석 점검) | CAR_SEATS / CONTROL_CAR_SEATS |
 | 조명 | Light 앰비언트 밝기·색·스위치 set / 실내등 등 나머지 set | 앰비언트: CAR_LIGHTS / 그 외: CONTROL_CAR_LIGHTS |
 | 공조 | HVAC 온도·풍량·외기 유입 set/get | CAR_CLIMATE / CONTROL_CAR_CLIMATE |
 | 하차 체크 | Window `getCurrentWindowPosition`, Light 상태, Seat occupancy | CAR_WINDOWS / CAR_LIGHTS / CAR_SEATS |

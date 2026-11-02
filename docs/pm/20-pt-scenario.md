@@ -146,7 +146,7 @@ Pleos Vehicle SDK에는 차속 API가 없지만, AAOS 표준 `CarPropertyManager
 
 ### 기술
 **Q13. Pleos SDK를 어디에 썼나요? 핵심 기능에 쓰인 게 맞나요?**
-EvBattery(포트·SOC), Seat(자세·열선·통풍·착좌), HVAC, Light, Window, Brake(`registerBrakePedalStatus`), Gear(`registerGearSelection`), TTS(ON_DEVICE 한국어)에 AAOS `CarUxRestrictionsManager`까지 씁니다. 앱 기능의 100%가 SDK의 get/set/register 위에서 돌아가고, SDK를 빼면 남는 기능이 없습니다.
+EvBattery(포트·SOC), Seat(자세·통풍·착좌), HVAC, Light, Window, Brake(`registerBrakePedalStatus`), Gear(`registerGearSelection`), TTS(ON_DEVICE 한국어)에 AAOS `CarUxRestrictionsManager`까지 씁니다. 앱 기능의 100%가 SDK의 get/set/register 위에서 돌아가고, SDK를 빼면 남는 기능이 없습니다.
 
 **Q14. 시트가 리클라인되지 않는 차종이나 권한 승인이 안 나면요?**
 set을 하기 전에 항상 capability를 확인하고, 지원하지 않는 항목만 건너뜁니다. 크래시가 나지 않는 것을 수용 기준에 넣었습니다. 권한은 Pleos 앱 심사 가이드에 "Vehicle SDK 퍼미션은 Pleos App Market과 사전 협의 및 승인된 경우에만 선언할 수 있다"고 명시돼 있습니다. 그래서 출시 단계에서 권한별 용도와 주행 제한 중 전면 차단 정책을 첨부해 사전 협의를 신청할 계획입니다. 시트 제어가 승인되지 않으면 권장 자세 안내와 시트 메모리 호출로 대체합니다. 조명과 공조만 있어도 "남은 분 + 목표 도달 깨움"이라는 핵심 가치는 남습니다.
