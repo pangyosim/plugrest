@@ -67,7 +67,7 @@
 | 하차 체크 | Window `getCurrentWindowPosition`, Light 상태, Seat occupancy | CAR_WINDOWS / CAR_LIGHTS / CAR_SEATS |
 | 음성 안내 | TextToSpeech(ON_DEVICE 모드, `Locale.KOREA`) `speak` | pleos.car.permission.TTS_SERVICE |
 
-- **차종별 사양 대응**: 값 변경은 set을 시도하고, 미지원·권한 오류가 돌아오면 그 항목만 건너뛰고 "이 차량 미지원"으로 표시한다. 차종별 값 범위가 다른 시트·조명은 2차 PT 전 `check…Capabilities` 사전 확인을 추가할 계획이다.
+- **차종별 사양 대응**: 시트 등받이와 앰비언트 조명은 시작 시 `check…Capabilities`로 지원 여부와 범위를 한 번 확인한다. 범위 밖 값은 보정하고, 미지원이면 제어하지 않는다. 그 외 항목은 제어를 시도한 뒤 미지원·권한 오류가 돌아오면 그 항목만 건너뛰고 "이 차량 미지원"으로 표시한다.
 - **상태 복원**: 휴식 모드에 들어가기 직전의 시트·조명·공조를 스냅샷으로 저장한다(메모리 + 로컬 저장소). 앱 프로세스가 다시 시작돼도 스냅샷으로 원래 상태를 되돌린다. 충전 포트를 분리하거나 2시간이 지나면 10초 예고 후 스냅샷으로 복원하고 세션을 종료한다.
 - **권한과 사전 협의 계획**
   - Pleos 앱 심사 가이드는 "Vehicle SDK 퍼미션은 Pleos App Market과 사전 협의 및 승인된 경우에만 선언할 수 있습니다"라고 명시한다. 차량 상태를 바꾸는 API에는 별도 심사 기준도 적용된다.
