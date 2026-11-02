@@ -23,7 +23,7 @@ class FakeVehicleGateway(
     private val _state = MutableStateFlow(
         VehicleState(
             connected = true, soc = startSoc, chargePortConnected = true, chargeSwitchOn = true, gear = Gear.PARK, rearSeatOccupied = false,
-            openWindows = emptyList(), unsupported = setOf(Feature.SEAT_HEAT),
+            openWindows = emptyList(),
         )
     )
     override val state: StateFlow<VehicleState> = _state
@@ -74,7 +74,6 @@ class FakeVehicleGateway(
         set("HVAC.setHvacRecirculation(ROW_1_LEFT, false)")
         when (seatMode) {
             SeatMode.VENT -> set("Seat.setHvacSeatVentilation(ROW_1_LEFT, ${PleosVehicleGateway.SEAT_LEVEL})")
-            SeatMode.HEAT -> record("Seat.setHvacSeatTemperature(ROW_1_LEFT, ${PleosVehicleGateway.SEAT_LEVEL}) · 미지원")
             SeatMode.NONE -> Unit
         }
         moveSeat("BACKWARD", if (halfRecline) 1_000 else 2_000)

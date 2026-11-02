@@ -3,11 +3,11 @@ package ai.pleos.plugrest.vehicle
 import kotlinx.coroutines.flow.StateFlow
 
 enum class Gear { PARK, DRIVE, REVERSE, NEUTRAL, UNKNOWN }
-enum class SeatMode { NONE, VENT, HEAT }
+enum class SeatMode { NONE, VENT } // 열선은 PRD v0.5에서 제외(통풍 끔/켬만)
 
 /** 차량이 지원하지 않아 건너뛴 기능. UI에 "· 이 차량 미지원"으로만 표시. */
 enum class Feature(val label: String) {
-    SEAT_RECLINE("등받이"), SEAT_VENT("통풍 시트"), SEAT_HEAT("열선 시트"),
+    SEAT_RECLINE("등받이"), SEAT_VENT("통풍 시트"),
     AMBIENT("앰비언트 라이트"), CABIN_LIGHT("실내등"), HVAC("공조"),
     GEAR("기어"), CHARGE_PORT("충전 포트"), BRAKE("브레이크"), WINDOW("창문"), OCCUPANCY("착좌 감지"),
 }
@@ -37,7 +37,6 @@ val VehicleState.drivingRestricted: Boolean
 data class CabinSnapshot(
     val backrestAngle: Int? = null,
     val seatVent: Int? = null,
-    val seatHeat: Int? = null,
     val ambientBrightness: Int? = null,
     val ambientColor: Int? = null,
     val cabinLightOn: Boolean? = null,

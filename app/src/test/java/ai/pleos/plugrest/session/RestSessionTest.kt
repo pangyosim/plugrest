@@ -62,18 +62,34 @@ class RestSessionTest {
     @Test
     fun drivingRestriction_stopsWithoutRestore_thenOffersOnceWhenParked() {
         session.start(80, SeatMode.NONE, CabinSnapshot(backrestAngle = 10), halfRecline = false)
-        // 기어 UNKNOWN(미지원)은 판정 보류, N/D/R은 제한
+        // 기어 UNKNOWN(미지원)은 판정 보류
         session.evaluate(charging.copy(gear = Gear.UNKNOWN))
         assertTrue(session.phase.value is Phase.Resting)
-        session.evaluate(charging.copy(gear = Gear.DRIVE))
-        assertEquals(Phase.Done(80, restored = false, EndReason.RESTRICTED), session.phase.value)
-        session.evaluate(charging.copy(gear = Gear.PARK))
+        // 현실 순서: 케이블 분리 → 10초 예고 중 출발(D) → 복원 없이 Done
+        session.evaluate(charging.copy(chargePortConnected = false))
+        assertEquals(EndReason.CHARGING_STOPPED, (session.phase.value as Phase.Restoring).reason)
+        session.evaluate(charging.copy(chargePortConnected = false, gear = Gear.DRIVE))
+        assertEquals(Phase.Done(80, restored = false, EndReason.CHARGING_STOPPED), session.phase.value)
+        // 포트가 빠진 채 재정차 → 세션을 닫지 않고 1회 제안 (C1)
+        session.evaluate(charging.copy(chargePortConnected = false, gear = Gear.PARK))
         assertTrue((session.phase.value as Phase.Done).offerRestore)
         session.acceptOfferedRestore()
-        val r = session.phase.value as Phase.Restoring
-        assertTrue(r.silent)
+        assertTrue((session.phase.value as Phase.Restoring).silent)
         session.restoreCompleted()
-        assertEquals(Phase.Done(80, restored = true, EndReason.RESTRICTED), session.phase.value)
+        assertEquals(Phase.Done(80, restored = true, EndReason.CHARGING_STOPPED), session.phase.value)
+        // 복원이 끝난 뒤에는 포트 분리로 세션 종료
+        session.evaluate(charging.copy(chargePortConnected = false, gear = Gear.PARK))
+        assertEquals(Phase.Idle, session.phase.value)
+    }
+
+    @Test
+    fun unrestoredDone_expires2HoursAfterSessionStart() {
+        session.start(80, SeatMode.NONE, CabinSnapshot(backrestAngle = 10), halfRecline = false)
+        session.evaluate(charging.copy(gear = Gear.DRIVE))
+        assertTrue(session.phase.value is Phase.Done)
+        clock += 2 * 60 * 60_000L + 1_000
+        session.evaluate(charging.copy(gear = Gear.DRIVE, chargePortConnected = false))
+        assertEquals(Phase.Idle, session.phase.value)
     }
 
     @Test

@@ -13,7 +13,7 @@ class SessionStore(context: Context) {
         putBoolean("active", true)
         putInt("target", resting.target); putLong("startedAt", resting.startedAt)
         putString("seatMode", resting.seatMode.name); putBoolean("half", resting.halfRecline)
-        putNullableInt("backrest", snapshot.backrestAngle); putNullableInt("vent", snapshot.seatVent); putNullableInt("heat", snapshot.seatHeat)
+        putNullableInt("backrest", snapshot.backrestAngle); putNullableInt("vent", snapshot.seatVent)
         putNullableInt("ambB", snapshot.ambientBrightness); putNullableInt("ambC", snapshot.ambientColor)
         putNullableBool("cabin", snapshot.cabinLightOn); putNullableBool("hvacPower", snapshot.hvacPower); putNullableBool("recirc", snapshot.hvacRecirculation)
         snapshot.hvacTemp?.let { putFloat("hvacTemp", it) } ?: remove("hvacTemp")
@@ -24,10 +24,12 @@ class SessionStore(context: Context) {
         if (!p.getBoolean("active", false)) return null
         val resting = Phase.Resting(
             p.getInt("target", 80), p.getLong("startedAt", 0L),
-            SeatMode.valueOf(p.getString("seatMode", SeatMode.NONE.name)!!), p.getBoolean("half", false),
+            // 구 저장값(HEAT 등)은 NONE으로 방어
+            runCatching { SeatMode.valueOf(p.getString("seatMode", SeatMode.NONE.name)!!) }.getOrDefault(SeatMode.NONE),
+            p.getBoolean("half", false),
         )
         val snap = CabinSnapshot(
-            backrestAngle = int("backrest"), seatVent = int("vent"), seatHeat = int("heat"),
+            backrestAngle = int("backrest"), seatVent = int("vent"),
             ambientBrightness = int("ambB"), ambientColor = int("ambC"), cabinLightOn = bool("cabin"),
             hvacTemp = if (p.contains("hvacTemp")) p.getFloat("hvacTemp", 0f) else null,
             hvacFan = int("hvacFan"), hvacPower = bool("hvacPower"), hvacRecirculation = bool("recirc"),

@@ -16,6 +16,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -51,7 +52,7 @@ class MainActivity : ComponentActivity() {
                 }
             }
 
-            Column(Modifier.fillMaxSize()) {
+            Column(Modifier.fillMaxSize().navigationBarsPadding()) { // 시스템 제스처 바와 Fake 패널 핸들이 겹치지 않게
                 androidx.compose.foundation.layout.Box(Modifier.weight(1f)) {
                     when (val p = phase) {
                         Phase.Idle -> IdleScreen(s, g.session.blockReason(s)) { target, seat -> g.startRest(this@MainActivity, target, seat) }

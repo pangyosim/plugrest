@@ -43,6 +43,7 @@ class RestSession(
     private var seatRestored = false
     private var wasRestricted = false
     private var lastChargingAt = Long.MIN_VALUE
+    private var sessionStartedAt = 0L
 
     @Synchronized fun onSoc(soc: Int) {
         val t = now()
@@ -85,13 +86,15 @@ class RestSession(
     @Synchronized fun start(target: Int, seatMode: SeatMode, snapshot: CabinSnapshot, halfRecline: Boolean) {
         this.snapshot = snapshot
         seatRestored = false
-        _phase.value = Phase.Resting(target, now(), seatMode, halfRecline)
+        sessionStartedAt = now()
+        _phase.value = Phase.Resting(target, sessionStartedAt, seatMode, halfRecline)
     }
 
     /** 프로세스 재생성 후 복구. 2시간 지났으면 폐기(PRD v0.5). */
     @Synchronized fun resume(resting: Phase.Resting, snapshot: CabinSnapshot): Boolean {
         if (now() - resting.startedAt > MAX_SESSION_MS) return false
         this.snapshot = snapshot
+        sessionStartedAt = resting.startedAt
         _phase.value = resting
         return true
     }
@@ -132,7 +135,9 @@ class RestSession(
             }
             is Phase.Restoring -> if (restricted) finish(Phase.Done(p.target, restored = false, p.reason))
             is Phase.Done -> when {
-                s.chargePortConnected == false -> reset() // 포트 분리 → 세션 종료(서비스·알림 종료)
+                // 포트 분리로 종료하는 건 복원이 끝났거나 되돌릴 게 없을 때만. 미복원 Done은 재정차 제안을 위해 유지 (검수 C1, PM 승인)
+                s.chargePortConnected == false && (p.restored || snapshot == null) -> reset()
+                now() - sessionStartedAt > MAX_SESSION_MS -> reset() // 세션 시작 시각 기준 2시간 → 폐기
                 // 미복원 상태로 주행했다가 다시 정차 → 1회 제안 (PRD v0.5 §4.4)
                 !p.restored && !p.offerRestore && wasRestricted && !restricted && snapshot != null ->
                     _phase.value = p.copy(offerRestore = true)

@@ -44,6 +44,7 @@ class PleosVehicleGateway(context: Context) : VehicleGateway {
     private val appContext = context.applicationContext
     private var vehicle = Vehicle(appContext)
     private var released = false
+    private var refreshJob: kotlinx.coroutines.Job? = null
     private val _state = MutableStateFlow(VehicleState())
     override val state: StateFlow<VehicleState> = _state
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
@@ -80,6 +81,7 @@ class PleosVehicleGateway(context: Context) : VehicleGateway {
     }
 
     override fun stop() {
+        refreshJob?.cancel() // 이전 vehicle 객체로 get이 계속 돌지 않게 (검수 C2)
         listeners.forEach { u -> try { u() } catch (e: Exception) { Log.w(TAG, "unregister", e) } }
         listeners.clear()
         try { ux?.unregisterListener(); car?.disconnect() } catch (_: Throwable) {}
@@ -89,7 +91,7 @@ class PleosVehicleGateway(context: Context) : VehicleGateway {
     }
 
     override fun refresh() {
-        scope.launch {
+        refreshJob = scope.launch {
             val ev = vehicle.getEvBattery()
             get<Int>(null) { ok, err -> ev.getEvBatteryStateOfCharge(ok, err) }?.let { soc -> _state.update { it.copy(soc = soc) } }
             get<Boolean>(Feature.CHARGE_PORT) { ok, err -> ev.isEvChargePortOpen(ok, err) }?.let { p -> _state.update { it.copy(chargePortConnected = p) } }
@@ -178,7 +180,6 @@ class PleosVehicleGateway(context: Context) : VehicleGateway {
         return CabinSnapshot(
             backrestAngle = get(Feature.SEAT_RECLINE) { ok, err -> seat.getCurrentSeatBackrestAnglePosition(driver, ok, err) },
             seatVent = get(Feature.SEAT_VENT) { ok, err -> seat.getHvacSeatVentilationState(driver, ok, err) },
-            seatHeat = get(Feature.SEAT_HEAT) { ok, err -> seat.getHvacSeatTemperature(driver, ok, err) },
             ambientBrightness = get(Feature.AMBIENT) { ok, err -> light.getAmbientLightBrightness(driver, ok, err) },
             ambientColor = get(Feature.AMBIENT) { ok, err -> light.getAmbientLightBrightnessColor(driver, ok, err) },
             cabinLightOn = get<LightSwitch>(Feature.CABIN_LIGHT) { ok, err -> light.getCabinLightSwitch(ok, err) }?.let { it == LightSwitch.ON },
@@ -203,7 +204,6 @@ class PleosVehicleGateway(context: Context) : VehicleGateway {
         // 시트: 통풍/열선(칩 선택), 등받이 리클라인
         when (seatMode) {
             SeatMode.VENT -> set(Feature.SEAT_VENT) { ok, err -> seat.setHvacSeatVentilation(driver, SEAT_LEVEL, { _, _ -> ok(Unit) }, err) }
-            SeatMode.HEAT -> set(Feature.SEAT_HEAT) { ok, err -> seat.setHvacSeatTemperature(driver, SEAT_LEVEL, { _, _ -> ok(Unit) }, err) }
             SeatMode.NONE -> Unit
         }
         moveBackrest(MoveControl.BACKWARD, if (halfRecline) RECLINE_MS / 2 else RECLINE_MS)
@@ -213,7 +213,6 @@ class PleosVehicleGateway(context: Context) : VehicleGateway {
         val light = vehicle.getLight(); val hvac = vehicle.getHVAC(); val seat = vehicle.getSeat()
         restoreSeat(snapshot)
         snapshot.seatVent?.let { v -> set(Feature.SEAT_VENT) { ok, err -> seat.setHvacSeatVentilation(driver, v, { _, _ -> ok(Unit) }, err) } }
-        snapshot.seatHeat?.let { v -> set(Feature.SEAT_HEAT) { ok, err -> seat.setHvacSeatTemperature(driver, v, { _, _ -> ok(Unit) }, err) } }
         snapshot.ambientBrightness?.let { v -> set(Feature.AMBIENT) { ok, err -> light.setAmbientLightBrightness(driver, v, { _, _ -> ok(Unit) }, err) } }
         snapshot.ambientColor?.let { v -> set(Feature.AMBIENT) { ok, err -> light.setAmbientLightBrightnessColor(driver, v, { _, _ -> ok(Unit) }, err) } }
         snapshot.cabinLightOn?.let { on -> set(Feature.CABIN_LIGHT) { ok, err -> light.setCabinLightSwitch(if (on) LightSwitch.ON else LightSwitch.OFF, { ok(Unit) }, err) } }
