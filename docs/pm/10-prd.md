@@ -56,7 +56,7 @@ EV 충전 대기 시간 동안 원탭으로 시트·조명·공조를 '휴식 �
 | 공조 | HVAC 온도·풍량 set/get | CAR_CLIMATE / CONTROL_CAR_CLIMATE |
 | 하차 체크 | Window `registerWindowPosition`, Light 상태, Seat occupancy | **CAR_WINDOWS**, CAR_LIGHTS, CAR_SEATS |
 | 음성 | TextToSpeech(ctx, Mode.ON_DEVICE) → `setLocale(Locale.KOREA)` → `speak` | pleos.car.permission.TTS_SERVICE **[v0.4]** |
-- **[구현 확정]** set을 시도하고 미지원·권한 오류(onFailed)가 오면 해당 항목만 건너뛰고 UI에 "이 차량 미지원" 표시. `checkXxxCapabilities` 사전 확인은 에뮬레이터 실측 후 2차 PT 개선 항목(값 범위가 차종별로 다른 Seat/Light에 우선 적용).
+- **[구현 확정]** set을 시도하고 미지원·권한 오류(onFailed)가 오면 해당 항목만 건너뛰고 UI에 "이 차량 미지원" 표시. **[구현 완료 896539b]** 시트 등받이·앰비언트 조명은 초기화 시 `checkXxxCapabilities`로 지원 여부·값 범위를 1회 확인해 캐시하고 set 값을 범위로 clamp, 미지원이면 set을 보내지 않음. 나머지 도메인은 set 시도 후 실패 건너뛰기.
 - **[v0.5]** Pleos 심사 가이드 명문: "Vehicle SDK 퍼미션은 Pleos App Market과 사전 협의 및 승인된 경우에만 선언할 수 있다" — 읽기 포함 전체, 제어 권한은 별도 심사. 제안서 §5에 "사용 권한 목록 + 사전 협의 신청 계획"을 명시. 미승인 대비: 시트는 "권장 자세 안내 + `selectSeatMemory`"로 대체.
 - **[v0.5]** 차속: Vehicle SDK엔 없지만 AAOS `CarPropertyManager`의 `PERF_VEHICLE_SPEED`로 읽을 수 있음. 필요 시 보조 신호로 사용, "속도 신호가 없다"고 말하지 말 것.
 
