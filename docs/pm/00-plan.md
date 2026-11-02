@@ -57,3 +57,4 @@
 - 2026-11-03: 개인정보처리방침 초안 완료(docs/submission/privacy-policy.md, 코드 대조 완료). 문의 이메일·시행일 플레이스홀더는 사용자 기입.
 - 2026-11-03: 코드 리뷰 차단·높음 수정 완료(테스트 8/8, B1은 AVD 실측 확인). 스크린샷 6장·Fake 녹화 81초·apk/·.gitignore 준비. 결정: 충전 판정 90초 히스테리시스, Done 10분 타임아웃. 다음: 검수 재검, 디자인 2차 대조, 기획 시안 PDF·docx, 마케팅 영상 편집.
 - 2026-11-03: git init + 첫 커밋 + 공개 저장소 https://github.com/pangyosim/plugrest 푸시(사용자 지시). 커밋 author는 GitHub noreply 이메일로 설정(개인 이메일 비노출). 개발 세션 사용 한도 도달 → 재촬영은 서브에이전트가 수행. 영상 v1(demo_fake_v1.mp4 75초, shortform_v1.mp4 45초, 무음) 완료.
+- 사용자 확인 필요: GitHub 계정명 pangyosim이 실명 기반이면 "공유 링크에 개발자 실명 노출 금지" 규정 저촉 가능 → 팀/앱 이름 조직 계정(예: plugrest-app) 생성 후 repo 이전 권장.
