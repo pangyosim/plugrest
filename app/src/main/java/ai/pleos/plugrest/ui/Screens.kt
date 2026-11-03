@@ -267,16 +267,16 @@ fun RestingScreen(p: Phase.Resting, s: VehicleState, remaining: Int?, learned: I
         // 디자인 ⑫ M1: 선라이즈 문구는 하단 상태줄 첫 줄(헤더의 데모 고지는 유지)
         if (p.sunrise) Text(if (Feature.AMBIENT in s.unsupported) "곧 깨워 드릴게요" else "곧 깨워 드릴게요 · 조명을 천천히 밝히는 중", style = T.bodyS.copy(fontWeight = FontWeight.Bold), color = C.restText, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
         if (p.halfRecline) Text(if (s.rearSeatOccupied == true) "뒷좌석에 사람이 있어 등받이를 절반만 젖혔어요" else "뒷좌석 확인이 안 돼 등받이를 절반만 젖혔어요", style = T.bodyS, color = dim, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
-        // 착좌 안내가 있으면 등받이 줄은 중복이라 생략(3줄 유지)
-        val seatLine = when {
-            p.halfRecline && p.seatMode == SeatMode.VENT -> "통풍 시트" to Feature.SEAT_VENT
-            p.halfRecline -> null
-            p.seatMode == SeatMode.VENT -> "등받이 리클라인 · 통풍" to Feature.SEAT_VENT
-            else -> "등받이 리클라인" to Feature.SEAT_RECLINE
+        // 상태는 아이콘+뱃지(사용자 요청). 미지원은 흐리게 + "미지원"
+        val badges = buildList {
+            add(Badge(CabinIcon.SEAT, if (p.halfRecline) "등받이 절반" else "등받이 젖힘", Feature.SEAT_RECLINE in s.unsupported))
+            if (p.seatMode == SeatMode.VENT) add(Badge(CabinIcon.VENT, "통풍 시트", Feature.SEAT_VENT in s.unsupported))
+            add(Badge(CabinIcon.AMBIENT, if (p.sunrise) "조명 밝히는 중" else "앰비언트 어둡게", Feature.AMBIENT in s.unsupported))
+            add(Badge(CabinIcon.LAMP, "실내등 끔", Feature.AMBIENT in s.unsupported))
+            add(Badge(CabinIcon.TEMP, "22°C", Feature.HVAC in s.unsupported))
+            add(Badge(CabinIcon.FAN, "풍량 ${if (p.sunrise) 2 else 1}단", Feature.HVAC in s.unsupported))
         }
-        listOfNotNull(seatLine, (if (p.sunrise) "앰비언트 밝히는 중 · 실내등 끔" else "앰비언트 어둡게 · 실내등 끔") to Feature.AMBIENT, "공조 22°C · 풍량 ${if (p.sunrise) 2 else 1}단" to Feature.HVAC).forEach { (label, f) ->
-            Text(label + if (f in s.unsupported) " · 이 차량 미지원" else "", style = T.bodyS, color = dim, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
-        }
+        BadgeRow(badges, active = C.restText, muted = dim, bg = C.surfaceRest, large = wide)
         if (s.seatMoving) Text("시트 이동 중 · 화면을 누르면 멈춥니다", style = T.bodyS, color = dim, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
         Spacer(Modifier.height(if (wide) D.section * 1.5f else D.section))
         BigButton("종료", onStop, bg = C.surfaceRest, fg = C.restText)
@@ -401,3 +401,73 @@ private fun EndReason.title(target: Int) = when (this) {
 }
 
 private fun Gear.label() = when (this) { Gear.PARK -> "P"; Gear.DRIVE -> "D"; Gear.REVERSE -> "R"; Gear.NEUTRAL -> "N"; Gear.UNKNOWN -> "-" }
+
+
+// ---- 상태 뱃지 (아이콘은 의존성 없이 Canvas로 그림) ----
+enum class CabinIcon { SEAT, VENT, AMBIENT, LAMP, TEMP, FAN }
+data class Badge(val icon: CabinIcon, val label: String, val unsupported: Boolean = false)
+
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+@Composable
+fun BadgeRow(badges: List<Badge>, active: Color, muted: Color, bg: Color, large: Boolean = false) {
+    androidx.compose.foundation.layout.FlowRow(
+        Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        badges.forEach { b ->
+            val tint = if (b.unsupported) muted.copy(alpha = 0.5f) else active
+            Row(
+                Modifier.clip(RoundedCornerShape(if (large) 20.dp else 16.dp)).background(bg).padding(horizontal = if (large) 22.dp else 16.dp, vertical = if (large) 14.dp else 10.dp),
+                verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                CabinGlyph(b.icon, tint, Modifier.size(if (large) 36.dp else 28.dp))
+                Text(b.label + if (b.unsupported) " · 미지원" else "", style = if (large) T.bodyL else T.bodyS, color = tint, maxLines = 1)
+            }
+        }
+    }
+}
+
+@Composable
+fun CabinGlyph(icon: CabinIcon, tint: Color, modifier: Modifier = Modifier) {
+    Canvas(modifier) {
+        val w = size.width; val h = size.height; val sw = w * 0.1f
+        val st = Stroke(width = sw, cap = StrokeCap.Round)
+        when (icon) {
+            CabinIcon.SEAT -> { // 등받이(기울임) + 방석
+                drawLine(tint, Offset(w * 0.32f, h * 0.12f), Offset(w * 0.22f, h * 0.62f), sw, StrokeCap.Round)
+                drawRoundRect(tint, Offset(w * 0.18f, h * 0.58f), Size(w * 0.56f, h * 0.2f), androidx.compose.ui.geometry.CornerRadius(sw))
+                drawLine(tint, Offset(w * 0.28f, h * 0.78f), Offset(w * 0.28f, h * 0.92f), sw, StrokeCap.Round)
+                drawLine(tint, Offset(w * 0.66f, h * 0.78f), Offset(w * 0.66f, h * 0.92f), sw, StrokeCap.Round)
+            }
+            CabinIcon.VENT -> { // 바람 3줄
+                for ((i, f) in listOf(0.3f, 0.5f, 0.7f).withIndex()) {
+                    val len = if (i == 1) 0.7f else 0.5f
+                    drawLine(tint, Offset(w * 0.15f, h * f), Offset(w * (0.15f + len), h * f), sw, StrokeCap.Round)
+                }
+            }
+            CabinIcon.AMBIENT -> { // 해(원 + 광선)
+                drawCircle(tint, radius = w * 0.18f, center = Offset(w / 2, h / 2), style = st)
+                for (k in 0 until 8) {
+                    val a = Math.toRadians(k * 45.0); val c = Math.cos(a).toFloat(); val sn = Math.sin(a).toFloat()
+                    drawLine(tint, Offset(w / 2 + c * w * 0.3f, h / 2 + sn * h * 0.3f), Offset(w / 2 + c * w * 0.42f, h / 2 + sn * h * 0.42f), sw, StrokeCap.Round)
+                }
+            }
+            CabinIcon.LAMP -> { // 전구
+                drawCircle(tint, radius = w * 0.24f, center = Offset(w / 2, h * 0.4f), style = st)
+                drawLine(tint, Offset(w * 0.4f, h * 0.72f), Offset(w * 0.6f, h * 0.72f), sw, StrokeCap.Round)
+                drawLine(tint, Offset(w * 0.43f, h * 0.86f), Offset(w * 0.57f, h * 0.86f), sw, StrokeCap.Round)
+            }
+            CabinIcon.TEMP -> { // 온도계
+                drawRoundRect(tint, Offset(w * 0.4f, h * 0.08f), Size(w * 0.2f, h * 0.55f), androidx.compose.ui.geometry.CornerRadius(w * 0.1f), style = st)
+                drawCircle(tint, radius = w * 0.17f, center = Offset(w / 2, h * 0.75f))
+            }
+            CabinIcon.FAN -> { // 팬 날개 3개
+                drawCircle(tint, radius = w * 0.08f, center = Offset(w / 2, h / 2))
+                for (k in 0 until 3) {
+                    val a = Math.toRadians(k * 120.0 - 90); val c = Math.cos(a).toFloat(); val sn = Math.sin(a).toFloat()
+                    drawCircle(tint, radius = w * 0.15f, center = Offset(w / 2 + c * w * 0.25f, h / 2 + sn * h * 0.25f), style = st)
+                }
+            }
+        }
+    }
+}
