@@ -39,3 +39,10 @@
 - 에이전트의 외부 repo 클론·빌드가 권한 정책으로 차단됨 → 첫 gradle 빌드는 사용자 세션 또는 권한 허용 후 진행
 - TTS HYBRID/SERVER "앱 등록"이 Pleos Playground 콘솔 프로젝트 생성을 뜻하는지 확인 필요 (ON_DEVICE로 시작하면 무관)
 - 에뮬레이터가 Seat move / Light set / HVAC set을 실제 반영하는지(Virtual Console에 값 보이는지) 1일차에 검증
+
+## Pleos 에뮬레이터 설치 결과 (2026-11-03, PM 실측)
+- CLI 설치 성공: `~/.android/repositories.cfg`에 update site 등록 → `sdkmanager "system-images;android-34;pleos_car_emulator;arm64-v8a"` (4.4GB 다운로드, 압축 해제 후 19GB). 장치 정의 "Pleos_Connect_v2_0"이 이미지에 포함됨.
+- AVD: `avdmanager create avd -n Pleos_Connect_v2_1 -k ... -d Pleos_Connect_v2_0`, config.ini에 hw.ramSize=4096, fastboot.forceColdBoot=yes.
+- **Apple Silicon(M4 Pro) 부팅 성공**: 첫 실행에서 "Boot completed in 12434 ms", GPU 체크 통과(OpenGL ES Translator, Metal).
+- 단, 다른 에뮬레이터(Medium_Tablet) + gradle 데몬이 떠 있는 상태(물리 메모리 23G/24G)에서는 행 감지("detected a hanging thread")로 종료됨. **Pleos 에뮬레이터를 띄울 때는 다른 AVD·빌드 데몬을 내린 뒤 단독 실행** 필요.
+- 실행: `emulator -avd Pleos_Connect_v2_1 -no-snapshot -gpu host -cores 4 -memory 4096`
