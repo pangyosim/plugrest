@@ -181,13 +181,16 @@ fun IdleScreen(s: VehicleState, blockReason: String?, rates: ChargeRateMemory, o
         Text("충전쉼표", style = T.titleL, color = C.textPrimary)
         Spacer(Modifier.height(D.section))
         Text(s.soc?.let { "$it%" } ?: "--", style = T.displayL, color = C.textPrimary)
-        Text(
-            when {
-                !s.connected -> "차량 연결 중…"
-                blockReason == null -> "충전 중 · 기어 ${s.gear?.label() ?: "P"}"
-                else -> "대기 중 · 기어 ${s.gear?.label() ?: "-"}"
-            } + DEMO_TAG, style = T.bodyL, color = C.textSecondary,
-        )
+        Spacer(Modifier.height(D.gap / 2))
+        BadgeRow(buildList {
+            add(when {
+                !s.connected -> Badge(CabinIcon.BOLT, "차량 연결 중")
+                blockReason == null -> Badge(CabinIcon.BOLT, "충전 중")
+                else -> Badge(CabinIcon.BOLT, "대기 중")
+            })
+            add(Badge(CabinIcon.GEAR, "기어 ${s.gear?.label() ?: "-"}"))
+            if (BuildConfig.DEMO) add(Badge(CabinIcon.CLOCK, "시간 단축 데모"))
+        }, active = C.textSecondary, muted = C.textTertiary, bg = C.surface, start = true)
         Spacer(Modifier.height(D.section))
     }) { wide ->
         Text("언제 깨워 드릴까요", style = T.labelM, color = C.textTertiary)
@@ -226,7 +229,11 @@ fun RestingScreen(p: Phase.Resting, s: VehicleState, remaining: Int?, learned: I
     // 디자인 ⑫: 선라이즈는 배경 1회 교체 + 글자 전부 restText(restTextDim 대비 부족)
     val dim = if (p.sunrise) C.restText else C.restTextDim
     Screen(if (p.sunrise) C.bgSunrise else C.bgRest, Modifier.pointerInput(Unit) { detectTapGestures { onTouch() } }, hero = {
-        Text((if (departMinutes != null) "휴식 중 · 출발 시각 모드" else "휴식 중 · 목표 ${p.target}%") + DEMO_TAG, style = T.labelM, color = dim)
+        BadgeRow(buildList {
+            add(Badge(CabinIcon.MOON, "휴식 중"))
+            add(Badge(CabinIcon.TARGET, if (departMinutes != null) "출발 시각 모드" else "목표 ${p.target}%"))
+            if (BuildConfig.DEMO) add(Badge(CabinIcon.CLOCK, "시간 단축 데모"))
+        }, active = dim, muted = dim, bg = if (p.sunrise) C.surfaceRest.copy(alpha = 0.6f) else C.surfaceRest, start = true)
         Spacer(Modifier.height(D.gap))
         if (departMinutes != null) { // 디자인 ⑪: 출발 모드 — 링 안 "출발까지 N분", 아래 배터리·출발 시 예상
             SocRing(s.soc ?: 0, null, C.restCharge, C.restText, Modifier.weight(1f, fill = false)) { d ->
@@ -240,7 +247,7 @@ fun RestingScreen(p: Phase.Resting, s: VehicleState, remaining: Int?, learned: I
             val predicted = predictSoc(departMinutes)
             Box(Modifier.fillMaxWidth().height(120.dp), contentAlignment = Alignment.Center) {
                 if (predicted != null) Text("출발 시 약 $predicted%", style = T.titleL, color = C.restText)
-                else Text("출발 시 배터리 · 계산 중…", style = T.titleL, color = dim)
+                else CalculatingText("출발 시 배터리 · 계산 중", style = T.titleL, color = dim)
             }
         } else {
             SocRing(s.soc ?: 0, p.target, C.restCharge, C.restText, Modifier.weight(1f, fill = false))
@@ -257,7 +264,7 @@ fun RestingScreen(p: Phase.Resting, s: VehicleState, remaining: Int?, learned: I
                     modifier = Modifier.padding(start = 16.dp).border(2.dp, dim, RoundedCornerShape(8.dp)).padding(horizontal = 12.dp, vertical = 4.dp))
             }
             Box(Modifier.fillMaxWidth().height(if (wide) 180.dp else 120.dp), contentAlignment = Alignment.Center) {
-                if (remaining == null) Text("계산 중…", style = if (wide) T.displayL else T.titleL, color = dim)
+                if (remaining == null) CalculatingText("계산 중", style = if (wide) T.displayL else T.titleL, color = dim)
                 else Text("약 ${remaining}분", style = if (wide) T.displayXL else T.displayL, color = C.restText, maxLines = 1, softWrap = false)
             }
             if (remaining == null && learnedEta != null) Text("지난 충전 기준 약 ${learnedEta}분", style = T.bodyS, color = dim, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
@@ -268,15 +275,20 @@ fun RestingScreen(p: Phase.Resting, s: VehicleState, remaining: Int?, learned: I
         if (p.sunrise) Text(if (Feature.AMBIENT in s.unsupported) "곧 깨워 드릴게요" else "곧 깨워 드릴게요 · 조명을 천천히 밝히는 중", style = T.bodyS.copy(fontWeight = FontWeight.Bold), color = C.restText, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
         if (p.halfRecline) Text(if (s.rearSeatOccupied == true) "뒷좌석에 사람이 있어 등받이를 절반만 젖혔어요" else "뒷좌석 확인이 안 돼 등받이를 절반만 젖혔어요", style = T.bodyS, color = dim, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
         // 상태는 아이콘+뱃지(사용자 요청). 미지원은 흐리게 + "미지원"
-        val badges = buildList {
+        // 1줄: 실내등·온도·풍량 / 2줄: 등받이·(통풍)·앰비언트 (사용자 지정 순서)
+        val row1 = listOf(
+            Badge(CabinIcon.LAMP, "실내등 끔", Feature.AMBIENT in s.unsupported),
+            Badge(CabinIcon.TEMP, "22°C", Feature.HVAC in s.unsupported),
+            Badge(CabinIcon.FAN, "풍량 ${if (p.sunrise) 2 else 1}단", Feature.HVAC in s.unsupported),
+        )
+        val row2 = buildList {
             add(Badge(CabinIcon.SEAT, if (p.halfRecline) "등받이 절반" else "등받이 젖힘", Feature.SEAT_RECLINE in s.unsupported))
             if (p.seatMode == SeatMode.VENT) add(Badge(CabinIcon.VENT, "통풍 시트", Feature.SEAT_VENT in s.unsupported))
             add(Badge(CabinIcon.AMBIENT, if (p.sunrise) "조명 밝히는 중" else "앰비언트 어둡게", Feature.AMBIENT in s.unsupported))
-            add(Badge(CabinIcon.LAMP, "실내등 끔", Feature.AMBIENT in s.unsupported))
-            add(Badge(CabinIcon.TEMP, "22°C", Feature.HVAC in s.unsupported))
-            add(Badge(CabinIcon.FAN, "풍량 ${if (p.sunrise) 2 else 1}단", Feature.HVAC in s.unsupported))
         }
-        BadgeRow(badges, active = C.restText, muted = dim, bg = C.surfaceRest, large = wide)
+        BadgeRow(row1, active = C.restText, muted = dim, bg = C.surfaceRest, large = wide)
+        Spacer(Modifier.height(12.dp))
+        BadgeRow(row2, active = C.restText, muted = dim, bg = C.surfaceRest, large = wide)
         if (s.seatMoving) Text("시트 이동 중 · 화면을 누르면 멈춥니다", style = T.bodyS, color = dim, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
         Spacer(Modifier.height(if (wide) D.section * 1.5f else D.section))
         BigButton("종료", onStop, bg = C.surfaceRest, fg = C.restText)
@@ -390,7 +402,6 @@ private fun Toggle(label: String, checked: Boolean, modifier: Modifier = Modifie
 }
 
 /** BuildConfig.DEMO: 시간이 단축된 빌드임을 심사위원에게 표시 */
-private val DEMO_TAG = if (BuildConfig.DEMO) " · 시간 단축 데모" else ""
 
 /** 출발 모드 칩. DEMO 빌드에서만 "2분 후" 시연용 칩 노출 (PRD §4.7) */
 private val DEPART_MINUTES = listOf(15, 30, 45) + if (BuildConfig.DEMO) listOf(2) else emptyList()
@@ -404,14 +415,14 @@ private fun Gear.label() = when (this) { Gear.PARK -> "P"; Gear.DRIVE -> "D"; Ge
 
 
 // ---- 상태 뱃지 (아이콘은 의존성 없이 Canvas로 그림) ----
-enum class CabinIcon { SEAT, VENT, AMBIENT, LAMP, TEMP, FAN }
+enum class CabinIcon { SEAT, VENT, AMBIENT, LAMP, TEMP, FAN, MOON, TARGET, CLOCK, BOLT, GEAR }
 data class Badge(val icon: CabinIcon, val label: String, val unsupported: Boolean = false)
 
 @OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
-fun BadgeRow(badges: List<Badge>, active: Color, muted: Color, bg: Color, large: Boolean = false) {
+fun BadgeRow(badges: List<Badge>, active: Color, muted: Color, bg: Color, large: Boolean = false, start: Boolean = false) {
     androidx.compose.foundation.layout.FlowRow(
-        Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally),
+        Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp, if (start) Alignment.Start else Alignment.CenterHorizontally),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         badges.forEach { b ->
@@ -461,6 +472,32 @@ fun CabinGlyph(icon: CabinIcon, tint: Color, modifier: Modifier = Modifier) {
                 drawRoundRect(tint, Offset(w * 0.4f, h * 0.08f), Size(w * 0.2f, h * 0.55f), androidx.compose.ui.geometry.CornerRadius(w * 0.1f), style = st)
                 drawCircle(tint, radius = w * 0.17f, center = Offset(w / 2, h * 0.75f))
             }
+            CabinIcon.MOON -> { // 초승달: 큰 원에서 작은 원을 배경색으로 덮는 대신 두 호
+                drawCircle(tint, radius = w * 0.34f, center = Offset(w * 0.5f, h * 0.5f), style = st)
+                drawArc(tint, startAngle = -60f, sweepAngle = 300f, useCenter = false, topLeft = Offset(w * 0.3f, h * 0.22f), size = Size(w * 0.56f, h * 0.56f), style = Stroke(sw * 0.6f, cap = StrokeCap.Round))
+            }
+            CabinIcon.TARGET -> { // 과녁
+                drawCircle(tint, radius = w * 0.38f, center = Offset(w / 2, h / 2), style = st)
+                drawCircle(tint, radius = w * 0.2f, center = Offset(w / 2, h / 2), style = st)
+                drawCircle(tint, radius = w * 0.06f, center = Offset(w / 2, h / 2))
+            }
+            CabinIcon.CLOCK -> { // 시계
+                drawCircle(tint, radius = w * 0.38f, center = Offset(w / 2, h / 2), style = st)
+                drawLine(tint, Offset(w / 2, h / 2), Offset(w / 2, h * 0.26f), sw, StrokeCap.Round)
+                drawLine(tint, Offset(w / 2, h / 2), Offset(w * 0.68f, h * 0.6f), sw, StrokeCap.Round)
+            }
+            CabinIcon.BOLT -> { // 번개
+                val path = androidx.compose.ui.graphics.Path().apply {
+                    moveTo(w * 0.58f, h * 0.06f); lineTo(w * 0.26f, h * 0.56f); lineTo(w * 0.5f, h * 0.56f)
+                    lineTo(w * 0.42f, h * 0.94f); lineTo(w * 0.76f, h * 0.42f); lineTo(w * 0.52f, h * 0.42f); close()
+                }
+                drawPath(path, tint)
+            }
+            CabinIcon.GEAR -> { // 기어 노브: 원 + 스틱
+                drawCircle(tint, radius = w * 0.2f, center = Offset(w / 2, h * 0.3f), style = st)
+                drawLine(tint, Offset(w / 2, h * 0.5f), Offset(w / 2, h * 0.9f), sw, StrokeCap.Round)
+                drawLine(tint, Offset(w * 0.3f, h * 0.9f), Offset(w * 0.7f, h * 0.9f), sw, StrokeCap.Round)
+            }
             CabinIcon.FAN -> { // 팬 날개 3개
                 drawCircle(tint, radius = w * 0.08f, center = Offset(w / 2, h / 2))
                 for (k in 0 until 3) {
@@ -468,6 +505,21 @@ fun CabinGlyph(icon: CabinIcon, tint: Color, modifier: Modifier = Modifier) {
                     drawCircle(tint, radius = w * 0.15f, center = Offset(w / 2 + c * w * 0.25f, h / 2 + sn * h * 0.25f), style = st)
                 }
             }
+        }
+    }
+}
+
+
+/** "계산 중" 뒤 점 1→2→3 순환(400ms). 정차 전용 화면이라 허용되는 최소 모션. 글자 폭 고정을 위해 점 3개 자리를 항상 확보. */
+@Composable
+fun CalculatingText(prefix: String, style: androidx.compose.ui.text.TextStyle, color: Color) {
+    var n by remember { mutableStateOf(1) }
+    androidx.compose.runtime.LaunchedEffect(Unit) { while (true) { kotlinx.coroutines.delay(400); n = n % 3 + 1 } }
+    Row(verticalAlignment = Alignment.Bottom) {
+        Text(prefix, style = style, color = color, maxLines = 1)
+        Box { // 보이지 않는 "…"로 폭 고정 + 실제 점
+            Text("…", style = style, color = Color.Transparent)
+            Text(".".repeat(n), style = style, color = color)
         }
     }
 }
