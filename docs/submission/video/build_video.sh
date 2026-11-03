@@ -6,6 +6,7 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 SRC="${1:-raw_fake_01.mp4}"
+BRAND="$PWD/../../design/brand"
 T="$(mktemp -d)"; trap 'rm -rf "$T"' EXIT
 ENC=(-c:v libx264 -preset medium -crf 20 -pix_fmt yuv420p -r 30 -an)
 
@@ -13,7 +14,7 @@ BG=0E0F12; W=F5F5F5; G=AAB0B6; M=43E0A0; A=FFC75A
 
 # ---------- 1) 자막·카드 PNG ----------
 cat > "$T/spec.txt" <<EOF
-title.png|1920|1080|$BG|center|b150,$W,충전쉼표|52,$G,Plug & Rest|b64,$M,충전은 차가, 휴식은 당신이.|38,$A,시간 단축 데모 · Fake 차량 패널로 녹화한 화면
+title_txt.png|1000|540|none|left|b130,$W,충전쉼표|44,$G,Plug & Rest|b54,$M,충전은 차가, 휴식은 당신이.|34,$A,시간 단축 데모 · Fake 차량 패널
 end.png|1920|1080|$BG|center|b90,$W,충전쉼표 (Plug & Rest)|44,$W,① 충전이 감지되면 원탭으로 시트·조명·공조를 휴식 상태로|44,$W,② 실제 충전 속도로 남은 시간 계산, 목표에 닿으면 음성으로 깨움|44,$W,③ 10초 뒤 자동 복원 + 내리기 전 창문·실내등·뒷좌석 확인|34,$M,Pleos Vehicle SDK (EvBattery · Seat · Light · HVAC) · TextToSpeech
 d1.png|1140|1080|$BG|left|b32,$M,STEP 1 · 충전 감지|b64,$W,충전이 감지되면\n버튼이 켜집니다|36,$G,주차(P) 상태에서 충전 포트가 연결되고\n배터리가 오르면 '휴식 모드 시작'이 활성화됩니다.\n\n아래 Fake 차량 패널로 차량 신호를 바꾸는 모습입니다.
 d2.png|1140|1080|$BG|left|b32,$M,STEP 2 · 원탭 휴식|b64,$W,시트 · 조명 · 공조를\n한 번에|36,$G,등받이 리클라인, 앰비언트 어둡게, 실내등 끔,\n공조 22°C · 풍량 1단.\n패널 아래에 실제 SDK 호출이 찍힙니다.|34,$A,음성 안내 (에뮬레이터 녹화 시)\n"휴식 모드를 시작합니다.\n목표 80%에 도달하면 깨워 드릴게요."
@@ -22,7 +23,9 @@ d4.png|1140|1080|$BG|left|b32,$M,STEP 3 · 남은 시간|b64,$W,실제 충전 �
 d5.png|1140|1080|$BG|left|b32,$M,STEP 4 · 목표 도달|b64,$W,목표에 닿으면 깨우고\n원래대로|36,$G,10초 카운트다운 뒤 시트·조명·공조를 복원합니다.\n'취소'하면 지금 상태 그대로 끝냅니다.|34,$A,음성 안내 (에뮬레이터 녹화 시)\n"목표 80%에 도달했습니다.\n10초 후 시트를 원래대로 되돌립니다."
 d6.png|1140|1080|$BG|left|b32,$M,STEP 5 · 하차 전 확인|b64,$W,내리기 전에\n한 번 더|36,$G,복원이 끝나면 열린 창문, 켜진 실내등,\n뒷좌석 탑승자를 한 줄로 알려줍니다.
 s_hook.png|1080|1920|000000|center|b130,$W,충전 47분,|b110,$M,아직도\n폰만 보세요?
-s_end.png|1080|1920|000000|center|b84,$W,충전은 차가,\n휴식은 당신이.|44,$G,Pleos Connect 앱|b72,$M,충전쉼표|40,$G,Plug & Rest
+s_ring.png|760|760|none|center|b130,$W,충전쉼표|44,$M,Plug & Rest
+s_slogan.png|1080|400|none|center|b80,$W,충전은 차가,\n휴식은 당신이.|40,$G,Pleos Connect 앱
+s_tags.png|1080|120|none|center|34,$M,#HMG차량용앱개발공모전 #PleosConnect #전기차충전
 s_bot.png|1080|220|$BG|center|30,$G,충전쉼표 · 시간 단축 데모 (Fake 차량 패널)
 s2.png|1080|220|$BG|center|b60,$W,충전 꽂으면, 차가 먼저 알아챕니다
 s3.png|1080|220|$BG|center|b72,$M,목표 80%. 원탭.
@@ -56,6 +59,11 @@ seg() { # 시작 끝 배속 자막png 출력 모드(demo|short)
       -t "$dur" "${ENC[@]}" "$5"
   fi
 }
+bgcard() { # 배경이미지 길이 출력 필터 오버레이png...  (필터에서 [0:v]=배경, [1:v]~=오버레이)
+  local bg=$1 d=$2 out=$3 f=$4; shift 4; local in=(); for p in "$@"; do in+=(-i "$T/$p"); done
+  ffmpeg -v error -y -loop 1 -framerate 30 -t "$d" -i "$bg" "${in[@]}" -filter_complex \
+    "$f,fade=in:d=0.4,fade=out:st=$(echo "$d-0.4" | bc):d=0.4" -t "$d" "${ENC[@]}" "$out"
+}
 join() { # 출력 조각...
   local out=$1; shift; : > "$T/list.txt"
   for f in "$@"; do echo "file '$f'" >> "$T/list.txt"; done
@@ -63,7 +71,9 @@ join() { # 출력 조각...
 }
 
 # ---------- 3) 시연 영상 (약 75초) ----------
-card title.png 4 "$T/a0.mp4"
+# 키비주얼 1672x941 → 1920 폭으로 키우고 1080으로 자름. 좌상단 빈 하늘에 반투명 패널 + 글자
+bgcard "$BRAND/keyvisual.png" 4 "$T/a0.mp4" \
+  "[0:v]scale=1920:-2,crop=1920:1080,format=yuv420p,drawbox=x=60:y=60:w=740:h=520:color=0x0E0F12@0.55:t=fill[b];[b][1:v]overlay=60:60" title_txt.png
 seg 0  11 1 d1.png "$T/a1.mp4" demo   # 충전 포트 ON → 버튼 활성
 seg 11 20 1 d2.png "$T/a2.mp4" demo   # 원탭 시작, 패널에 SDK 호출 로그
 seg 20 34 2 d3.png "$T/a3.mp4" demo   # 계산 중… (2배속)
@@ -82,7 +92,9 @@ seg 21 26 1     s5.png "$T/b5.mp4" short  # 계산 중 + 시작 안내
 seg 26 48 3.143 s6.png "$T/b6.mp4" short  # 남은 시간 갱신 (약 3.1배속 → 7초)
 seg 48 60 2     s7.png "$T/b7.mp4" short  # 카운트다운 (2배속 → 6초)
 seg 64 68 1     s8.png "$T/b8.mp4" short  # 창문 열림 체크
-card s_end.png 4 "$T/b9.mp4"
+# 세로 배경 941x1672 → 1080x1920. 민트 링 중심 (540,551) 반지름 약 430 → 링 안에 앱명, 아래 슬로건, 맨 아래 해시태그
+bgcard "$BRAND/vertical-bg.png" 4 "$T/b9.mp4" \
+  "[0:v]scale=1080:1920[b];[b][1:v]overlay=160:171[c];[c][2:v]overlay=0:1020[d];[d][3:v]overlay=0:1770" s_ring.png s_slogan.png s_tags.png
 join shortform_v1.mp4 "$T"/b{1..9}.mp4
 
 for f in demo_fake_v1.mp4 shortform_v1.mp4; do
