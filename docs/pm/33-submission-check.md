@@ -1,6 +1,6 @@
 # 33. 제출 패키지 점검 (2026-11-03, 검수B)
 
-대상: `docs/submission/접수양식_충전쉼표_draft.docx`(02 섹션 1~8 텍스트 추출 + 메타데이터), `화면시안_충전쉼표.pdf`(10쪽 렌더링), `email-draft.md`, `privacy-policy.md`, 루트 `README.md`, `video/demo_fake_v1.mp4`(75초, 1920×1080)·`shortform_v1.mp4`(45초, 1080×1920)는 프레임 18장 추출, git 저장소(커밋 작성자·추적 파일).
+대상: `docs/submission/접수양식_충전쉼표_draft.docx`(02 섹션 1~8 텍스트 추출 + 메타데이터), `화면시안_충전쉼표.pdf`(9쪽 렌더링), `email-draft.md`, `privacy-policy.md`, 루트 `README.md`, `video/demo_fake_v1.mp4`(75초, 1920×1080)·`shortform_v1.mp4`(45초, 1080×1920)는 프레임 18장 추출, git 저장소(커밋 작성자·추적 파일).
 기준: 31-factcheck §5 체크리스트, PM 지시 (1)~(5), 현재 코드(`app/` 08:30 빌드).
 판정: ○ 일치 / △ 보완 / × 수정 필요. 담당: 기획 / 마케팅 / 개발 / 사용자.
 
@@ -67,7 +67,7 @@
 | git 추적 파일 텍스트 | 로컬 경로(`/Users/…`)·개인 이메일·전화·실명 grep 0건 | ○ |
 | **주의(사용자)**: `docs/submission/*.docx`가 저장소에 추적됨 | 지금 draft는 01이 빈칸이라 OK. **01·04를 채운 최종본(_final.docx)을 커밋하면 실명·전화·서명이 GitHub에 공개됨** | △ `.gitignore`에 `docs/submission/*_final.docx` 추가 (개발) |
 | docx 메타데이터 | `creator: python-docx`, `lastModifiedBy: 김상우 연구원 라이프플랫폼팀` — **주최측 공식 양식(`docs/contest-application-consent.docx`)에서 그대로 상속된 값**(원본도 동일). 우리 팀 정보 아님 | △ 무해하나 원하면 Word에서 "문서 검사"로 제거 (사용자, 선택) |
-| PDF 메타데이터·본문 | Title만, 작성자 없음. 10쪽 이미지에 계정·실명 없음, 상태바 아이콘만 | ○ |
+| PDF 메타데이터·본문 | Title만, 작성자 없음. 9쪽 이미지에 계정·실명 없음, 상태바 아이콘만 | ○ |
 | 영상 프레임(데모 10장·숏폼 8장)·메타데이터 | 실명·계정·경로 없음. Fake 패널 로그는 SDK 호출문뿐. 메타는 encoder 태그만 | ○ |
 | 숏폼 업로드 채널 | 아직 없음(링크 플레이스홀더) — 채널명·핸들 실명 여부 업로드 시 확인 | — (사용자) |
 
