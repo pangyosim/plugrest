@@ -321,3 +321,22 @@ docx §5·PRD §5·PT `:152`는 "check…Capabilities 사전 확인을 **추가�
 **판정:** F1은 사용자에게 사실과 다른 표시라 반영 권장(데모 빌드 20초 케이스도 같은 수정으로 해소). F2·F3은 각각 한 줄이라 함께 권장. F4는 보류 가능.
 
 **7차 PM 결정:** F1~F3 채택, F4 보류. 개발이 데모 학습 구간 40초 단축(실차 2분 유지)과 함께 반영 예정 → 8차 확인 항목: 데모 단축이 실차(release) 빌드 동작에 영향 없음.
+
+## 8차 — 7차 반영 + 데모 학습 40초 + 런처 아이콘 (2026-11-03)
+
+검수 재실행 16/16 통과.
+
+| 항목 | 결과 | 근거 |
+|---|---|---|
+| F1 실측 태그 | 해소 | `RestSession.hasMeasuredSlope()`(:121) → `MainActivity.kt:60` → `Screens.kt:188` `&& measured`. 스크린샷 08(계산 중·학습 보조 줄·태그 없음), 09(실측 태그) 확인 |
+| F2 학습값 폴백 | 해소 | `RestSession.kt:113` 실측 → `rates.estimateMinutes` → FALLBACK. fullFlow assert 추가 |
+| F3 상한 | 해소 | `ChargeRateMemory.kt:24` `> MAX_PCT_PER_MIN(5.0)` 무시, 테스트 `record(12.0)` |
+| **데모 40초가 실차 빌드에 영향 없음 (PM 지정)** | **확인** | `minSlopeSpanMs` 기본값 2분(`RestSession.kt:37`), 데모 값은 `App.kt` 한 곳에서만 `if (BuildConfig.DEMO) 40_000L else 2*60_000L` — 기존 `calculatingMs`·`chargingWindowMs`와 같은 패턴. `-Pdemo=false`면 BuildConfig.DEMO=false 상수 → 2분. 단위테스트는 `RestSession(now=…)` 기본값(=실차 값)으로 돌아 실차 경로가 테스트됨. 같은 상수를 다른 곳에서 쓰는 코드 없음(구 `MIN_SLOPE_SPAN_MIN` 제거) |
+| 런처 아이콘 | 이상 없음 | adaptive-icon(bg #16233F + fg mipmap), 밀도별 108~432px 정확, Manifest `@mipmap/ic_launcher`, 알림 small icon은 `drawable/ic_launcher`(벡터) 유지 — 타입 다른 리소스라 충돌 없음. 스크린샷 10 원형 마스크에서 잘림 없음 |
+
+**참고(결함 아님):**
+- G1 (문서) 제출 APK는 DEMO=true(기존 L4 결정)라 **제출본에선 학습 최소 구간도 40초**. README `:51`·`:98`, `docs/submission/readme-draft.md:53`·`:100`, PRD §v0.5 데모 줄은 단축 항목을 "계산 중·충전 판정" 2개만 적고 있음 → "학습(실측 기울기) 2분→40초" 추가 권장(마케팅/기획).
+- G2 (데모 한정) 40초 창 + 정수 SOC라 Fake 1%/분이 1.5%/분으로 측정됨(스크린샷 09: 51%→80% "약 20분", 실제 페이스면 30분). 데모 값이 학습에도 들어가지만 상한 이하라 기록됨. 데모 기기 한정, 시연 멘트상 문제 없으면 그대로 두어도 됨.
+- G3 `apk/충전쉼표_PlugRest_release.apk` 13:53:56 — 아이콘 xml(13:53:37)보다 뒤라 이번 변경 포함으로 보임.
+
+**8차 판정: 코드 잔여 0건.** 문서 G1만 남음.
