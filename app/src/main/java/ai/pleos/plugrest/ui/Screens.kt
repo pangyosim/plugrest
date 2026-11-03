@@ -27,6 +27,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.rememberScrollState
@@ -137,8 +138,9 @@ fun SocRing(soc: Int, target: Int?, ring: Color, text: Color, modifier: Modifier
     val cfg = LocalConfiguration.current
     BoxWithConstraints(modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
         // 남은 높이(Fake 패널 열림 등)보다 커지지 않게
-        val d = min(min(min(cfg.screenWidthDp * 0.65f, cfg.screenHeightDp * 0.45f), 520f), maxHeight.value).dp
-        Box(Modifier.size(d), contentAlignment = Alignment.Center) {
+        // 폭에도 맞춘다: 열 폭보다 큰 지름은 가로만 눌려 타원이 됨(에뮬레이터 실측 446×519px)
+        val d = min(min(min(min(cfg.screenWidthDp * 0.65f, cfg.screenHeightDp * 0.45f), 520f), maxHeight.value), maxWidth.value).dp
+        Box(Modifier.size(d).aspectRatio(1f), contentAlignment = Alignment.Center) {
             Canvas(Modifier.fillMaxSize()) {
                 val stroke = D.ringStroke.toPx()
                 val inset = stroke / 2
@@ -233,7 +235,7 @@ fun IdleScreen(s: VehicleState, blockReason: String?, rates: ChargeRateMemory, o
             Spacer(Modifier.height(D.gap))
             Row(horizontalArrangement = Arrangement.spacedBy(D.gap)) {
                 DEPART_MINUTES.forEach { m ->
-                    val at = if (m == 2) now + 2 * 60_000L else roundUp5(now + m * 60_000L) // 데모 "2분 후"만 정확히
+                    val at = roundUp5(now + m * 60_000L)
                     Chip("${m}분 후", Math.abs(departAt - at) < 150_000L, { departAt = at }, Modifier.weight(1f))
                 }
             }
@@ -459,7 +461,7 @@ private fun Toggle(label: String, checked: Boolean, modifier: Modifier = Modifie
 /** BuildConfig.DEMO: 시간이 단축된 빌드임을 심사위원에게 표시 */
 
 /** 출발 모드 칩. DEMO 빌드에서만 "2분 후" 시연용 칩 노출 (PRD §4.7) */
-private val DEPART_MINUTES = listOf(10, 30, 60) + if (BuildConfig.DEMO) listOf(2) else emptyList()
+private val DEPART_MINUTES = listOf(10, 30, 60) // 데모 전용 "2분 후" 칩 제거 — 시연은 휠로 현재+N분 설정
 private val TARGET_OPTIONS = listOf(60, 70, 80, 90)
 private val MIN_DEPART_MS = if (BuildConfig.DEMO) 60_000L else 5 * 60_000L
 private fun roundUp5(ms: Long): Long { val step = 5 * 60_000L; return (ms + step - 1) / step * step } // 휠(5분 단위)과 일치
