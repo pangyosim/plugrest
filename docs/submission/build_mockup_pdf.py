@@ -15,6 +15,9 @@ SHOTS = [
     ("04-restoring.png", "목표 도달 — 음성 안내 후 10초 카운트다운, '취소'를 누르면 지금 상태 그대로 끝낸다"),
     ("05-done-restored-3warnings.png", "복원 완료 + 하차 체크 — 뒷좌석 사람·조수석 창문·실내등을 한 줄씩 안내한다"),
     ("06-done-kept.png", "취소한 경우 — 시트·조명·공조는 그대로 두고, 하차 체크만 보여 준다"),
+    ("07-idle-learned.png", "충전 속도 학습 — 두 번째 충전부터 대기 화면에 '지난 충전 n회 기준, 80%까지 보통 약 N분'"),
+    ("08-calculating-learned.png", "학습값 보조 — '계산 중' 동안에도 지난 충전 기준 예상 시간을 함께 보여 준다"),
+    ("09-resting-measured-tag.png", "실측 전환 — 실제 충전 속도가 잡히면 '실측' 태그와 함께 실측 남은 시간으로 바꾼다"),
 ]
 FONT = "/System/Library/Fonts/AppleSDGothicNeo.ttc"  # ponytail: macOS 전용 한글 폰트 경로
 W, H, M = 1240, 1754, 80  # A4 세로 150dpi
