@@ -15,8 +15,14 @@
 | SOC·기어 읽기 | 100% / 기어 P 즉시 표시. 콘솔에서 SOC 50 변경 시 반영 |
 | 충전 판정 | 포트 열림+스위치 ON+SOC 50 → 버튼 활성(“충전 중 · 기어 P”) |
 | 휴식 모드 시작 | FGS 시작, **TTS 온디바이스 재생**(GAAS OnDeviceStreamPlayer 로그), 시트 리클라인 **실제 실행**(콘솔 driver recline 80, Pleos Driving view에 "시트 위치 변경됨 저장할까요?" 표시), HVAC 22°C 설정 반영(하단 바 22.0° A/C), 뒷좌석 착좌 감지(기본 occupied → 절반 리클라인 안내) |
-| 앰비언트 | 화면에 "이 차량 미지원" → capability 미지원 또는 권한 문제. 콘솔 brightness 100 그대로. **원인 조사 필요** |
+| 앰비언트 | 1차: "이 차량 미지원". 원인 = capability 영역이 운전석 단일이 아니라 `[ROW_1_LEFT, ROW_1_RIGHT, ROW_2_*]` 복합 영역 하나로 옴(밝기 0..100, READ_WRITE). 운전석 우선·없으면 첫 영역을 쓰도록 수정 후 **콘솔 brightness 10, color #ffb36b 반영 확인** |
 | 종료 → 복원 | 종료 시 카운트다운(5초) 화면 정상 표시 |
+
+## 2차 실측 (앰비언트 수정 후)
+- 앱이 건드린 속성(Pleos 서비스 권한 검증 로그): SEAT_BACKREST_ANGLE_1_MOVE(2회=시작/정지), INTERIOR_LIGHTS_AMBIENT_BRIGHTNESS(+_COLOR), HVAC_TEMPERATURE_SET, HVAC_RECIRC_ON, HVAC_POWER_ON, HVAC_FAN_SPEED, CABIN_LIGHTS_SWITCH — 모두 권한 통과, 거부 없음.
+- 시트: move 명령은 전달되나 Virtual Console의 recline 위치 값은 변하지 않음(콘솔 위치는 콘솔 입력 전용으로 보임). 실차 각도 피드백은 미확인.
+- HVAC 온도 22°C는 Pleos 하단 바에 반영. 풍량은 콘솔 fan_speed 3 그대로(콘솔 값이 앱 set을 반영하는지 불명).
+- 뒷좌석 착좌: 콘솔 occupancy false인데 앱은 "뒷좌석에 사람이 있어 절반만" 표시 → occupancy 읽기가 null로 떨어져 보수 경로(절반) 사용 추정. 확인 필요.
 
 ## 미확인 / 후속
 - 앰비언트 Light set 미지원 원인(capability vs 권한 vs 영역)

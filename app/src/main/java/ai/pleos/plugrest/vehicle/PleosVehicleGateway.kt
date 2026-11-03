@@ -50,6 +50,8 @@ class PleosVehicleGateway(context: Context) : VehicleGateway {
     private var refreshJob: kotlinx.coroutines.Job? = null
     /** checkXxxCapabilities 결과 캐시: 앰비언트 밝기 허용 범위(모르면 null → clamp 안 함) */
     @Volatile private var ambientRange: IntRange? = null
+    @Volatile private var ambientArea: SeatArea = SeatArea(SeatValue.ROW_1_LEFT)
+    @Volatile private var ambientColorOk = true
     private val _state = MutableStateFlow(VehicleState())
     override val state: StateFlow<VehicleState> = _state
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
@@ -98,12 +100,17 @@ class PleosVehicleGateway(context: Context) : VehicleGateway {
         get<Pair<CapabilityConfig, Map<SeatArea, AreaBounds<Int>>>>(Feature.AMBIENT) { ok, err ->
             light.checkAmbientLightBrightnessCapabilities({ c, m -> ok(c to m) }, err)
         }?.let { (c, bounds) ->
-            val b = bounds.entries.firstOrNull { it.key.isDriver() }?.value
-            if (!c.writable() || b == null) markUnsupported(Feature.AMBIENT) else ambientRange = b.minValue..b.maxValue
+            // 에뮬레이터 실측: 앰비언트는 운전석 영역이 아니라 단일(전체) 영역으로 올 수 있음 → 운전석 우선, 없으면 첫 영역 사용
+            val e = bounds.entries.firstOrNull { it.key.isDriver() } ?: bounds.entries.firstOrNull()
+            android.util.Log.i("PlugRest", "cap ambient brightness access=${c.accessType} areas=${bounds.keys.map { it.values.toList() }} bounds=${bounds.values.map { "${it.minValue}..${it.maxValue}" }}")
+            if (!c.writable() || e == null) markUnsupported(Feature.AMBIENT) else { ambientRange = e.value.minValue..e.value.maxValue; ambientArea = e.key }
         }
         get<Pair<CapabilityConfig, List<SeatArea>>>(Feature.AMBIENT) { ok, err ->
             light.checkAmbientLightBrightnessColorCapabilities({ c, areas -> ok(c to areas) }, err)
-        }?.let { (c, areas) -> if (!c.writable() || areas.none { it.isDriver() }) markUnsupported(Feature.AMBIENT) }
+        }?.let { (c, areas) ->
+            android.util.Log.i("PlugRest", "cap ambient color access=${c.accessType} areas=${areas.map { it.values.toList() }}")
+            ambientColorOk = c.writable() && areas.isNotEmpty() // 색은 선택 사항: 미지원이어도 밝기만으로 진행
+        }
     }
 
     private fun CapabilityConfig.writable() = accessType == AccessType.WRITE || accessType == AccessType.READ_WRITE
@@ -210,8 +217,8 @@ class PleosVehicleGateway(context: Context) : VehicleGateway {
         return CabinSnapshot(
             backrestAngle = get(Feature.SEAT_RECLINE) { ok, err -> seat.getCurrentSeatBackrestAnglePosition(driver, ok, err) },
             seatVent = get(Feature.SEAT_VENT) { ok, err -> seat.getHvacSeatVentilationState(driver, ok, err) },
-            ambientBrightness = get(Feature.AMBIENT) { ok, err -> light.getAmbientLightBrightness(driver, ok, err) },
-            ambientColor = get(Feature.AMBIENT) { ok, err -> light.getAmbientLightBrightnessColor(driver, ok, err) },
+            ambientBrightness = get(Feature.AMBIENT) { ok, err -> light.getAmbientLightBrightness(ambientArea, ok, err) },
+            ambientColor = get(Feature.AMBIENT) { ok, err -> light.getAmbientLightBrightnessColor(ambientArea, ok, err) },
             cabinLightOn = get<LightSwitch>(Feature.CABIN_LIGHT) { ok, err -> light.getCabinLightSwitch(ok, err) }?.let { it == LightSwitch.ON },
             hvacTemp = get(Feature.HVAC) { ok, err -> hvac.getHvacTemperature(driver, TemperatureUnit.CELSIUS, ok, err) },
             hvacFan = get(Feature.HVAC) { ok, err -> hvac.getHvacFanSpeed(driver, ok, err) },
@@ -224,7 +231,7 @@ class PleosVehicleGateway(context: Context) : VehicleGateway {
 
     override suspend fun setAmbientBrightness(value: Int) {
         val light = vehicle.getLight()
-        set(Feature.AMBIENT) { ok, err -> light.setAmbientLightBrightness(driver, clampTo(value, ambientRange), { _, _ -> ok(Unit) }, err) }
+        set(Feature.AMBIENT) { ok, err -> light.setAmbientLightBrightness(ambientArea, clampTo(value, ambientRange), { _, _ -> ok(Unit) }, err) }
     }
 
     override suspend fun setHvacFan(level: Int) {
@@ -235,8 +242,8 @@ class PleosVehicleGateway(context: Context) : VehicleGateway {
     override suspend fun applyRest(seatMode: SeatMode, halfRecline: Boolean) {
         val seat = vehicle.getSeat(); val light = vehicle.getLight(); val hvac = vehicle.getHVAC()
         // 조명: 앰비언트 어둡게·따뜻하게, 실내등 OFF
-        set(Feature.AMBIENT) { ok, err -> light.setAmbientLightBrightness(driver, ambientLevel(AMBIENT_DIM_PCT), { _, _ -> ok(Unit) }, err) }
-        set(Feature.AMBIENT) { ok, err -> light.setAmbientLightBrightnessColor(driver, AMBIENT_WARM, { _, _ -> ok(Unit) }, err) }
+        set(Feature.AMBIENT) { ok, err -> light.setAmbientLightBrightness(ambientArea, ambientLevel(AMBIENT_DIM_PCT), { _, _ -> ok(Unit) }, err) }
+        if (ambientColorOk) set(Feature.AMBIENT) { ok, err -> light.setAmbientLightBrightnessColor(ambientArea, AMBIENT_WARM, { _, _ -> ok(Unit) }, err) }
         set(Feature.CABIN_LIGHT) { ok, err -> light.setCabinLightSwitch(LightSwitch.OFF, { ok(Unit) }, err) }
         // 공조: 22°C, 풍량 1단, 외기 유입, 전원 ON
         set(Feature.HVAC) { ok, err -> hvac.setHvacPower(driver, true, { _, _ -> ok(Unit) }, err) }
@@ -255,8 +262,8 @@ class PleosVehicleGateway(context: Context) : VehicleGateway {
         val light = vehicle.getLight(); val hvac = vehicle.getHVAC(); val seat = vehicle.getSeat()
         restoreSeat(snapshot)
         snapshot.seatVent?.let { v -> set(Feature.SEAT_VENT) { ok, err -> seat.setHvacSeatVentilation(driver, v, { _, _ -> ok(Unit) }, err) } }
-        snapshot.ambientBrightness?.let { v -> set(Feature.AMBIENT) { ok, err -> light.setAmbientLightBrightness(driver, clampTo(v, ambientRange), { _, _ -> ok(Unit) }, err) } }
-        snapshot.ambientColor?.let { v -> set(Feature.AMBIENT) { ok, err -> light.setAmbientLightBrightnessColor(driver, v, { _, _ -> ok(Unit) }, err) } }
+        snapshot.ambientBrightness?.let { v -> set(Feature.AMBIENT) { ok, err -> light.setAmbientLightBrightness(ambientArea, clampTo(v, ambientRange), { _, _ -> ok(Unit) }, err) } }
+        if (ambientColorOk) snapshot.ambientColor?.let { v -> set(Feature.AMBIENT) { ok, err -> light.setAmbientLightBrightnessColor(ambientArea, v, { _, _ -> ok(Unit) }, err) } }
         snapshot.cabinLightOn?.let { on -> set(Feature.CABIN_LIGHT) { ok, err -> light.setCabinLightSwitch(if (on) LightSwitch.ON else LightSwitch.OFF, { ok(Unit) }, err) } }
         snapshot.hvacTemp?.let { v -> set(Feature.HVAC) { ok, err -> hvac.setHvacTemperature(driver, v, TemperatureUnit.CELSIUS, { _, _ -> ok(Unit) }, err) } }
         snapshot.hvacFan?.let { v -> set(Feature.HVAC) { ok, err -> hvac.setHvacFanSpeed(driver, v, { _, _ -> ok(Unit) }, err) } }
