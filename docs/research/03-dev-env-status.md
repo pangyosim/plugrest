@@ -46,3 +46,4 @@
 - **Apple Silicon(M4 Pro) 부팅 성공**: 첫 실행에서 "Boot completed in 12434 ms", GPU 체크 통과(OpenGL ES Translator, Metal).
 - 단, 다른 에뮬레이터(Medium_Tablet) + gradle 데몬이 떠 있는 상태(물리 메모리 23G/24G)에서는 행 감지("detected a hanging thread")로 종료됨. **Pleos 에뮬레이터를 띄울 때는 다른 AVD·빌드 데몬을 내린 뒤 단독 실행** 필요.
 - 실행: `emulator -avd Pleos_Connect_v2_1 -no-snapshot -gpu host -cores 4 -memory 4096`
+- 추가 실측(2026-11-03): 시스템 이미지 source.properties가 **hw.ramSize=8192, hw.gpu.mode=host**를 권장(공식 문서의 4GB와 다름). 4GB·6GB로는 부팅 완료(8~12초) 직후 QEMU 메인 루프 15초 무응답으로 종료됨. 호스트 여유 메모리가 2~3GB뿐인 상태에서 발생 → **호스트에서 10GB 이상 비운 뒤 8GB로 단독 실행**이 필요. 그 전까지 B안(일반 AVD + Fake)로 진행.
