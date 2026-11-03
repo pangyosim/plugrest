@@ -23,13 +23,17 @@ FONT = "/System/Library/Fonts/AppleSDGothicNeo.ttc"  # ponytail: macOS 전용 �
 W, H, M = 1240, 1754, 80  # A4 세로 150dpi
 f = lambda size: ImageFont.truetype(FONT, size)
 
-cover = Image.new("RGB", (W, H), "white")
+# 표지: keyvisual을 하단에 깔고, 그 위 단색 남색 영역에 글자를 올린다(이미지 위에 글자를 겹치지 않아 가독성 확보)
+kv = Image.open(f"{D}/design/brand/keyvisual.png").convert("RGB")
+kv = kv.resize((W, round(kv.height * W / kv.width)))
+cover = Image.new("RGB", (W, H), kv.getpixel((10, 10)))
+cover.paste(kv, (0, H - kv.height - 140))
 d = ImageDraw.Draw(cover)
-d.text((M, 600), APP, font=f(72), fill="black")
-d.text((M, 720), "화면 시안", font=f(44), fill=(90, 90, 90))
+d.text((M, 260), APP, font=f(72), fill="white")
+d.text((M, 380), "화면 시안", font=f(44), fill=(255, 199, 90))  # 앰버 #FFC75A
 for i, line in enumerate(ONE_LINER):
-    d.text((M, 840 + i * 44), line, font=f(28), fill=(40, 40, 40))
-d.text((M, H - M - 40), "화면은 일반 Android Automotive 에뮬레이터 + Fake 차량 모드(시간 단축 데모)로 촬영", font=f(24), fill=(110, 110, 110))
+    d.text((M, 500 + i * 44), line, font=f(28), fill=(220, 226, 240))
+d.text((M, H - M - 40), "화면은 일반 Android Automotive 에뮬레이터 + Fake 차량 모드(시간 단축 데모)로 촬영", font=f(24), fill=(170, 180, 205))
 pages = [cover]
 
 for n, (name, cap) in enumerate(SHOTS, 1):
