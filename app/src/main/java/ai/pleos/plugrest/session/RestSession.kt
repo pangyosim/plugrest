@@ -120,10 +120,12 @@ class RestSession(
         val t = now()
         val window = history.filter { t - it.first <= SLOPE_WINDOW_MS }
         // 정수 SOC 양자화 보정: 첫 값 변화 시점부터 잰다. 세션 시작 샘플은 SOC 틱 중간이라 그대로 쓰면 기울기가 과대 (검수 G2)
+        // 끝점도 "마지막 SOC 값의 첫 샘플": 실차에선 SOC 외 필드 변화마다 같은 SOC 샘플이 쌓여 dt만 늘어남 (검수 H1)
         val start = window.firstOrNull { it.second != window.first().second } ?: return null
-        val dtMs = window.last().first - start.first
+        val end = window[window.indexOfLast { it.second != window.last().second } + 1]
+        val dtMs = end.first - start.first
         if (dtMs < minSlopeSpanMs) return null // 데이터 구간이 짧으면 "계산 중" 유지(슬라이더 점프·초기 노이즈 방지)
-        val slope = (window.last().second - start.second) / (dtMs / 60_000.0)
+        val slope = (end.second - start.second) / (dtMs / 60_000.0)
         return if (slope > 0) slope else null
     }
 

@@ -71,8 +71,9 @@ class RestSessionTest {
         clock += 20_000; session.onSoc(51)
         clock += 60_000; session.onSoc(52)
         clock += 60_000; session.onSoc(53)
-        clock += 60_000 // 계산 중 3분 경과
-        assertEquals(25, session.remainingMinutes(53, 80, startedAt)) // 27/1.0 → 25 (과대 추정이면 21 → 20)
+        clock += 50_000; session.onSoc(53) // SOC 외 필드 변화(공조 등)로 같은 SOC가 다시 샘플됨 — 끝점이 늘어나면 과소 (H1: 2/170s → 40분)
+        clock += 10_000 // 계산 중 3분 경과
+        assertEquals(25, session.remainingMinutes(53, 80, startedAt)) // 27/1.0 → 25 (시작점 과대면 20, 끝점 과소면 40)
     }
 
     @Test
