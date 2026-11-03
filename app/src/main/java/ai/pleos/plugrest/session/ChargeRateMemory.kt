@@ -28,15 +28,21 @@ class ChargeRateMemory(initial: Rates = Rates(), private val onChange: (Rates) -
 
     private operator fun Bucket.plus(v: Double) = Bucket(if (n == 0) v else ALPHA * v + (1 - ALPHA) * ema, n + 1)
 
-    /** 지난 충전 기준 예상 분. 기록이 전혀 없으면 null. 한쪽 버킷만 있으면 ×0.5 테이퍼로 다른 쪽을 추정. */
-    fun estimateMinutes(soc: Int, target: Int): Int? {
+    /** (≤80 기울기, >80 기울기). 기록이 전혀 없으면 null. 한쪽 버킷만 있으면 ×0.5 테이퍼로 다른 쪽을 추정. */
+    private fun slopes(): Pair<Double, Double>? {
         val r = _rates.value
         val below = r.below80.takeIf { it.n > 0 }?.ema
             ?: r.above80.takeIf { it.n > 0 }?.ema?.div(RestSession.ABOVE_80_FACTOR)
             ?: return null
         val above = r.above80.takeIf { it.n > 0 }?.ema ?: below * RestSession.ABOVE_80_FACTOR
-        return etaMinutes(soc, target, below, above)
+        return below to above
     }
+
+    /** 지난 충전 기준 예상 분. 기록이 전혀 없으면 null. */
+    fun estimateMinutes(soc: Int, target: Int): Int? = slopes()?.let { (b, a) -> etaMinutes(soc, target, b, a) }
+
+    /** 현재 SOC 구간의 학습 기울기(%/분). 출발 시 SOC 예측용. */
+    fun slopeAt(soc: Int): Double? = slopes()?.let { (b, a) -> if (soc <= 80) b else a }
 
     fun clear() { _rates.value = Rates(); onChange(_rates.value) }
 
@@ -47,11 +53,17 @@ class ChargeRateMemory(initial: Rates = Rates(), private val onChange: (Rates) -
     }
 }
 
-/** 남은 분: 80% 이하/초과 구간 기울기 분리, 5분 단위 반올림(최소 5). soc ≥ target → 0 */
-fun etaMinutes(soc: Int, target: Int, slopeBelow80: Double, slopeAbove80: Double): Int {
-    if (soc >= target) return 0
+/** 남은 분(반올림 전): 80% 이하/초과 구간 기울기 분리. soc ≥ target → 0 */
+fun etaMinutesRaw(soc: Int, target: Int, slopeBelow80: Double, slopeAbove80: Double): Double {
+    if (soc >= target) return 0.0
     val below80 = (minOf(target, 80) - soc).coerceAtLeast(0)
     val above80 = (target - maxOf(soc, 80)).coerceAtLeast(0)
-    val minutes = below80 / slopeBelow80 + above80 / slopeAbove80
+    return below80 / slopeBelow80 + above80 / slopeAbove80
+}
+
+/** 표시용 남은 분: 5분 단위 반올림(최소 5). soc ≥ target → 0 */
+fun etaMinutes(soc: Int, target: Int, slopeBelow80: Double, slopeAbove80: Double): Int {
+    if (soc >= target) return 0
+    val minutes = etaMinutesRaw(soc, target, slopeBelow80, slopeAbove80)
     return ((minutes / 5.0).roundToInt() * 5).coerceAtLeast(5)
 }

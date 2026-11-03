@@ -54,6 +54,8 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
+import kotlin.math.roundToInt
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
@@ -90,13 +92,27 @@ fun Chip(text: String, selected: Boolean, onClick: () -> Unit, modifier: Modifie
     ) { Text(text, style = T.titleS, color = C.textPrimary) }
 }
 
+/** 세그먼트 컨트롤 (v0.7): 높이 64, 트랙 r16 안쪽 4, 선택 surface r12 */
+@Composable
+fun Segmented(options: List<String>, selected: Int, onSelect: (Int) -> Unit, modifier: Modifier = Modifier) {
+    Row(modifier.fillMaxWidth().height(64.dp).clip(RoundedCornerShape(16.dp)).background(C.segTrack).padding(4.dp)) {
+        options.forEachIndexed { i, label ->
+            Box(
+                Modifier.weight(1f).fillMaxSize().clip(RoundedCornerShape(12.dp))
+                    .background(if (i == selected) C.surface else Color.Transparent).clickable { onSelect(i) },
+                contentAlignment = Alignment.Center,
+            ) { Text(label, style = T.segment, color = if (i == selected) C.textPrimary else C.textSecondary) }
+        }
+    }
+}
+
 @Composable
 fun Screen(bg: Color, modifier: Modifier = Modifier, content: @Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit) {
     Column(modifier.fillMaxSize().background(bg).padding(D.screenPad), content = content)
 }
 
 @Composable
-fun SocRing(soc: Int, target: Int, ring: Color, text: Color, modifier: Modifier = Modifier) {
+fun SocRing(soc: Int, target: Int?, ring: Color, text: Color, modifier: Modifier = Modifier, center: (@Composable (Dp) -> Unit)? = null) {
     // 화면 전체 기준 min(폭×0.65, 높이×0.45), 최대 520dp (tokens.md)
     val cfg = LocalConfiguration.current
     BoxWithConstraints(modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
@@ -109,14 +125,17 @@ fun SocRing(soc: Int, target: Int, ring: Color, text: Color, modifier: Modifier 
                 val arcSize = Size(size.width - stroke, size.height - stroke)
                 drawArc(C.track, -90f, 360f, false, Offset(inset, inset), arcSize, style = Stroke(stroke))
                 drawArc(ring, -90f, 360f * soc / 100f, false, Offset(inset, inset), arcSize, style = Stroke(stroke, cap = StrokeCap.Butt))
-                // 목표 눈금
-                val a = Math.toRadians((-90 + 360.0 * target / 100)).toFloat()
-                val r = size.minDimension / 2
-                val c = Offset(size.width / 2, size.height / 2)
-                drawLine(text, c + Offset(cos(a), sin(a)) * (r - stroke), c + Offset(cos(a), sin(a)) * r, strokeWidth = 6.dp.toPx())
+                // 목표 눈금 (출발 모드는 없음)
+                if (target != null) {
+                    val a = Math.toRadians((-90 + 360.0 * target / 100)).toFloat()
+                    val r = size.minDimension / 2
+                    val c = Offset(size.width / 2, size.height / 2)
+                    drawLine(text, c + Offset(cos(a), sin(a)) * (r - stroke), c + Offset(cos(a), sin(a)) * r, strokeWidth = 6.dp.toPx())
+                }
             }
             // 160sp @ 520dp 링 = 0.31. 링이 작아지면(패널 열림 등) 같이 줄인다.
-            Text("$soc%", style = T.displayXL.copy(fontSize = (d.value * 0.31f).sp, lineHeight = (d.value * 0.33f).sp), color = text, maxLines = 1, softWrap = false)
+            if (center != null) center(d)
+            else Text("$soc%", style = T.displayXL.copy(fontSize = (d.value * 0.31f).sp, lineHeight = (d.value * 0.33f).sp), color = text, maxLines = 1, softWrap = false)
         }
     }
 }
@@ -132,11 +151,15 @@ fun tick(): Long {
 // ---------- 화면 ----------
 
 @Composable
-fun IdleScreen(s: VehicleState, blockReason: String?, rates: ChargeRateMemory, onStart: (Int, SeatMode) -> Unit) {
+fun IdleScreen(s: VehicleState, blockReason: String?, rates: ChargeRateMemory, onStart: (target: Int, seat: SeatMode, departMin: Int) -> Unit) {
     var target by remember { mutableStateOf(80) }
     var seat by remember { mutableStateOf(SeatMode.NONE) }
+    var departure by remember { mutableStateOf(false) } // 세그먼트: 배터리 목표 | 출발 시각 (PRD §4.7)
+    var departMin by remember { mutableStateOf(30) }
     val learned by rates.rates.collectAsState()
     val eta = s.soc?.let { rates.estimateMinutes(it, target) }?.takeIf { it > 0 }
+    // 출발 시 예상 SOC(학습 기울기만, 가정 금지). 5% 반올림
+    val departSoc = s.soc?.let { soc -> rates.slopeAt(soc)?.let { (((soc + it * departMin) / 5.0).roundToInt() * 5).coerceIn(soc, 100) } }
     Screen(C.bg) {
         Text("충전쉼표", style = T.titleL, color = C.textPrimary)
         Spacer(Modifier.height(D.section))
@@ -149,13 +172,19 @@ fun IdleScreen(s: VehicleState, blockReason: String?, rates: ChargeRateMemory, o
             } + DEMO_TAG, style = T.bodyL, color = C.textSecondary,
         )
         Spacer(Modifier.height(D.section))
-        Text("목표 충전량", style = T.labelM, color = C.textTertiary)
+        Text("언제 깨워 드릴까요", style = T.labelM, color = C.textTertiary)
         Spacer(Modifier.height(D.gap / 2))
+        Segmented(listOf("배터리 목표", "출발 시각"), if (departure) 1 else 0, { departure = it == 1 })
+        Spacer(Modifier.height(D.gap))
         Row(horizontalArrangement = Arrangement.spacedBy(D.gap)) {
-            listOf(80, 90).forEach { t -> Chip("$t%", target == t, { target = t }, Modifier.weight(1f)) }
+            if (departure) DEPART_MINUTES.forEach { m -> Chip("${m}분 후", departMin == m, { departMin = m }, Modifier.weight(1f)) }
+            else listOf(80, 90).forEach { t -> Chip("$t%", target == t, { target = t }, Modifier.weight(1f)) }
         }
         Spacer(Modifier.height(D.gap))
-        Text(if (eta != null) "지난 충전 ${learned.count}회 기준, $target%까지 보통 약 ${eta}분" else "시작 후 실제 충전 속도로 남은 시간을 계산해요", style = T.bodyS, color = C.textSecondary)
+        if (departure) Text(
+            if (departSoc != null) "지난 충전 기준, 출발 시 약 $departSoc%" else "출발 시 배터리는 충전 속도를 확인한 뒤 알려 드려요",
+            style = T.bodyS, color = if (departSoc != null) C.textSecondary else C.textTertiary,
+        ) else Text(if (eta != null) "지난 충전 ${learned.count}회 기준, $target%까지 보통 약 ${eta}분" else "시작 후 실제 충전 속도로 남은 시간을 계산해요", style = T.bodyS, color = C.textSecondary)
         // 디자인 ⑦: labelS·밑줄·터치 64dp·왼쪽 정렬, 텍스트 버튼이 여백 역할이라 아래 간격 48→24
         if (learned.count > 0) Box(Modifier.height(64.dp).clickable { rates.clear() }, contentAlignment = Alignment.CenterStart) {
             Text("학습 기록 지우기", style = T.labelS.copy(textDecoration = TextDecoration.Underline), color = C.textTertiary)
@@ -168,33 +197,52 @@ fun IdleScreen(s: VehicleState, blockReason: String?, rates: ChargeRateMemory, o
             if (Feature.SEAT_VENT !in s.unsupported) Chip("켬", seat == SeatMode.VENT, { seat = SeatMode.VENT }, Modifier.weight(1f))
         }
         Spacer(Modifier.weight(1f))
-        BigButton("휴식 모드 시작", { onStart(target, seat) }, enabled = blockReason == null)
+        BigButton("휴식 모드 시작", { if (departure) onStart(100, seat, departMin) else onStart(target, seat, 0) }, enabled = blockReason == null)
         Spacer(Modifier.height(D.gap / 2))
-        Text(blockReason ?: "목표 $target%에 도달하면 깨워 드릴게요", style = T.bodyS, color = C.textTertiary, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
+        Text(blockReason ?: if (departure) "${departMin}분 후에 깨워 드릴게요" else "목표 $target%에 도달하면 깨워 드릴게요", style = T.bodyS, color = C.textTertiary, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
     }
 }
 
 @Composable
-fun RestingScreen(p: Phase.Resting, s: VehicleState, remaining: Int?, learned: Int?, onStop: () -> Unit, onTouch: () -> Unit) {
-    Screen(C.bgRest, Modifier.pointerInput(Unit) { detectTapGestures { onTouch() } }) {
-        Text("휴식 중 · 목표 ${p.target}%$DEMO_TAG", style = T.labelM, color = C.restTextDim)
+fun RestingScreen(p: Phase.Resting, s: VehicleState, remaining: Int?, learned: Int?, departMinutes: Int?, predictSoc: (Int) -> Int?, onStop: () -> Unit, onTouch: () -> Unit) {
+    // 디자인 ⑫: 선라이즈는 배경 1회 교체 + 글자 전부 restText(restTextDim 대비 부족)
+    val dim = if (p.sunrise) C.restText else C.restTextDim
+    Screen(if (p.sunrise) C.bgSunrise else C.bgRest, Modifier.pointerInput(Unit) { detectTapGestures { onTouch() } }) {
+        if (p.sunrise) Text(if (Feature.AMBIENT in s.unsupported) "곧 깨워 드릴게요" else "곧 깨워 드릴게요 · 조명을 천천히 밝히는 중", style = T.bodyS.copy(fontWeight = FontWeight.Bold), color = C.restText)
+        else Text((if (departMinutes != null) "휴식 중 · 출발 ${departMinutes}분 후" else "휴식 중 · 목표 ${p.target}%") + DEMO_TAG, style = T.labelM, color = dim)
         Spacer(Modifier.height(D.gap))
-        SocRing(s.soc ?: 0, p.target, C.restCharge, C.restText, Modifier.weight(1f, fill = false))
-        Spacer(Modifier.weight(0.01f))
-        // 디자인 ⑧⑨: remaining은 실측 기울기가 있을 때만 값(고정 가정 없음). 계산 중엔 학습값 보조 줄, 실측이 생기면 보조 줄 대신 "실측" 태그 (학습값을 보여준 세션만)
-        val learnedEta = learned?.takeIf { it > 0 }
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
-            Text("남은 시간", style = T.labelM, color = C.restTextDim)
-            if (remaining != null && learnedEta != null) Text("실측", style = T.labelS, color = C.restTextDim,
-                modifier = Modifier.padding(start = 16.dp).border(2.dp, C.restTextDim, RoundedCornerShape(8.dp)).padding(horizontal = 12.dp, vertical = 4.dp))
+        if (departMinutes != null) { // 디자인 ⑪: 출발 모드 — 링 안 "출발까지 N분", 아래 배터리·출발 시 예상
+            SocRing(s.soc ?: 0, null, C.restCharge, C.restText, Modifier.weight(1f, fill = false)) { d ->
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text("출발까지", style = T.labelM, color = dim)
+                    Text("${departMinutes}분", style = T.displayXL.copy(fontSize = (d.value * 0.31f).sp, lineHeight = (d.value * 0.33f).sp), color = C.restText, maxLines = 1, softWrap = false)
+                }
+            }
+            Spacer(Modifier.weight(0.01f))
+            Text("배터리 ${s.soc ?: "--"}%", style = T.labelM, color = dim, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
+            val predicted = predictSoc(departMinutes)
+            Box(Modifier.fillMaxWidth().height(120.dp), contentAlignment = Alignment.Center) {
+                if (predicted != null) Text("출발 시 약 $predicted%", style = T.titleL, color = C.restText)
+                else Text("출발 시 배터리 · 계산 중…", style = T.titleL, color = dim)
+            }
+        } else {
+            SocRing(s.soc ?: 0, p.target, C.restCharge, C.restText, Modifier.weight(1f, fill = false))
+            Spacer(Modifier.weight(0.01f))
+            // 디자인 ⑧⑨: remaining은 실측 기울기가 있을 때만 값(고정 가정 없음). 계산 중엔 학습값 보조 줄, 실측이 생기면 보조 줄 대신 "실측" 태그 (학습값을 보여준 세션만)
+            val learnedEta = learned?.takeIf { it > 0 }
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
+                Text("남은 시간", style = T.labelM, color = dim)
+                if (remaining != null && learnedEta != null) Text("실측", style = T.labelS, color = dim,
+                    modifier = Modifier.padding(start = 16.dp).border(2.dp, dim, RoundedCornerShape(8.dp)).padding(horizontal = 12.dp, vertical = 4.dp))
+            }
+            Box(Modifier.fillMaxWidth().height(120.dp), contentAlignment = Alignment.Center) {
+                if (remaining == null) Text("계산 중…", style = T.titleL, color = dim)
+                else Text("약 ${remaining}분", style = T.displayL, color = C.restText)
+            }
+            if (remaining == null && learnedEta != null) Text("지난 충전 기준 약 ${learnedEta}분", style = T.bodyS, color = dim, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
         }
-        Box(Modifier.fillMaxWidth().height(120.dp), contentAlignment = Alignment.Center) {
-            if (remaining == null) Text("계산 중…", style = T.titleL, color = C.restTextDim)
-            else Text("약 ${remaining}분", style = T.displayL, color = C.restText)
-        }
-        if (remaining == null && learnedEta != null) Text("지난 충전 기준 약 ${learnedEta}분", style = T.bodyS, color = C.restTextDim, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
         Spacer(Modifier.height(D.gap))
-        if (p.halfRecline) Text("뒷좌석에 사람이 있어 등받이를 절반만 젖혔어요", style = T.bodyS, color = C.restTextDim, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
+        if (p.halfRecline) Text("뒷좌석에 사람이 있어 등받이를 절반만 젖혔어요", style = T.bodyS, color = dim, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
         // 착좌 안내가 있으면 등받이 줄은 중복이라 생략(3줄 유지)
         val seatLine = when {
             p.halfRecline && p.seatMode == SeatMode.VENT -> "통풍 시트" to Feature.SEAT_VENT
@@ -202,10 +250,10 @@ fun RestingScreen(p: Phase.Resting, s: VehicleState, remaining: Int?, learned: I
             p.seatMode == SeatMode.VENT -> "등받이 리클라인 · 통풍" to Feature.SEAT_VENT
             else -> "등받이 리클라인" to Feature.SEAT_RECLINE
         }
-        listOfNotNull(seatLine, "앰비언트 어둡게 · 실내등 끔" to Feature.AMBIENT, "공조 22°C · 풍량 1단" to Feature.HVAC).forEach { (label, f) ->
-            Text(label + if (f in s.unsupported) " · 이 차량 미지원" else "", style = T.bodyS, color = C.restTextDim, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
+        listOfNotNull(seatLine, (if (p.sunrise) "앰비언트 밝히는 중 · 실내등 끔" else "앰비언트 어둡게 · 실내등 끔") to Feature.AMBIENT, "공조 22°C · 풍량 ${if (p.sunrise) 2 else 1}단" to Feature.HVAC).forEach { (label, f) ->
+            Text(label + if (f in s.unsupported) " · 이 차량 미지원" else "", style = T.bodyS, color = dim, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
         }
-        if (s.seatMoving) Text("시트 이동 중 · 화면을 누르면 멈춥니다", style = T.bodyS, color = C.restTextDim, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
+        if (s.seatMoving) Text("시트 이동 중 · 화면을 누르면 멈춥니다", style = T.bodyS, color = dim, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
         Spacer(Modifier.height(D.section))
         BigButton("종료", onStop, bg = C.surfaceRest, fg = C.restText)
     }
@@ -222,9 +270,11 @@ fun RestoringScreen(p: Phase.Restoring, s: VehicleState, now: Long, onCancel: ()
         return
     }
     Screen(C.bgRest, Modifier.pointerInput(Unit) { detectTapGestures { onTouch() } }) {
-        Text(when (p.reason) { EndReason.TARGET_REACHED -> "목표 ${p.target}% 도달"; EndReason.CHARGING_STOPPED -> "충전 중단"; else -> "휴식 모드 종료" }, style = T.labelM, color = C.restTextDim)
+        Text(p.reason.title(p.target), style = T.labelM, color = C.restTextDim)
         Spacer(Modifier.height(D.gap))
         if (p.reason == EndReason.TARGET_REACHED) Text("목표 ${p.target}%에 도달했습니다", style = T.bodyL, color = C.restText, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
+        if (p.reason == EndReason.DEPARTURE) Text("출발 시각입니다 · 배터리 ${s.soc ?: "--"}%", style = T.bodyL, color = C.restText, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
+        if (p.reason == EndReason.CHARGING_DONE) Text("충전이 끝났어요 · 배터리 ${s.soc ?: "--"}%", style = T.bodyL, color = C.restText, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
         Text("${secs}초 후 시트를 원래대로", style = T.bodyL, color = C.restText, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
         Column(Modifier.weight(1f).fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
             Text("$secs", style = T.displayXL, color = C.restText)
@@ -240,7 +290,7 @@ fun RestoringScreen(p: Phase.Restoring, s: VehicleState, now: Long, onCancel: ()
 @Composable
 fun DoneScreen(p: Phase.Done, s: VehicleState, onConfirm: () -> Unit, onRestore: () -> Unit, onKeep: () -> Unit) {
     Screen(C.bg) {
-        Text(if (p.reason == EndReason.TARGET_REACHED) "목표 ${p.target}% 도달" else "휴식 모드 종료", style = T.headlineL, color = C.textPrimary)
+        Text(p.reason.title(p.target), style = T.headlineL, color = C.textPrimary)
         Spacer(Modifier.height(D.gap))
         Text(if (p.restored) "시트·조명·공조를 원래대로 되돌렸어요." else "시트·조명·공조는 지금 상태 그대로예요.", style = T.bodyL, color = C.textSecondary)
         Spacer(Modifier.height(D.section))
@@ -277,13 +327,14 @@ fun FakePanel(fake: FakeVehicleGateway) {
     var open by remember { mutableStateOf(false) }
     val s by fake.state.collectAsState()
     val log by fake.log.collectAsState()
+    val ambient by fake.ambient.collectAsState()
     Column(Modifier.fillMaxWidth().background(C.surface).padding(horizontal = D.gap)) {
         // 접힌 상태는 24dp 핸들만 (텍스트 없음)
         Box(Modifier.fillMaxWidth().height(24.dp).clickable { open = !open }, contentAlignment = Alignment.Center) {
             Box(Modifier.size(width = 64.dp, height = 6.dp).clip(RoundedCornerShape(3.dp)).background(C.textTertiary))
         }
         if (!open) return@Column
-        Text("Fake 차량 패널", style = T.labelM, color = C.textSecondary, modifier = Modifier.padding(bottom = 8.dp))
+        Text("Fake 차량 패널 · 앰비언트 밝기 $ambient%", style = T.labelM, color = C.textSecondary, modifier = Modifier.padding(bottom = 8.dp))
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text("SOC ${s.soc}%", style = T.labelM, color = C.textPrimary, modifier = Modifier.weight(0.3f))
             Slider(value = (s.soc ?: 0).toFloat(), onValueChange = { fake.setSoc(it.toInt()) }, valueRange = 0f..100f, modifier = Modifier.weight(0.7f))
@@ -316,5 +367,13 @@ private fun Toggle(label: String, checked: Boolean, modifier: Modifier = Modifie
 
 /** BuildConfig.DEMO: 시간이 단축된 빌드임을 심사위원에게 표시 */
 private val DEMO_TAG = if (BuildConfig.DEMO) " · 시간 단축 데모" else ""
+
+/** 출발 모드 칩. DEMO 빌드에서만 "2분 후" 시연용 칩 노출 (PRD §4.7) */
+private val DEPART_MINUTES = listOf(15, 30, 45) + if (BuildConfig.DEMO) listOf(2) else emptyList()
+
+private fun EndReason.title(target: Int) = when (this) {
+    EndReason.TARGET_REACHED -> "목표 $target% 도달"; EndReason.CHARGING_STOPPED -> "충전 중단"
+    EndReason.DEPARTURE -> "출발 시각"; EndReason.CHARGING_DONE -> "충전 완료"; else -> "휴식 모드 종료"
+}
 
 private fun Gear.label() = when (this) { Gear.PARK -> "P"; Gear.DRIVE -> "D"; Gear.REVERSE -> "R"; Gear.NEUTRAL -> "N"; Gear.UNKNOWN -> "-" }

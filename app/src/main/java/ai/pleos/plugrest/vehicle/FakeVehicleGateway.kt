@@ -36,6 +36,9 @@ class FakeVehicleGateway(
     @Volatile private var reclinedMs = 0L
     /** Fake의 capability 고정 범위 (앰비언트 밝기) */
     val ambientRange: IntRange = 0..100
+    private val _ambient = MutableStateFlow(80)
+    /** 현재 앰비언트 밝기(패널 표시용, 선라이즈 시각화) */
+    val ambient: StateFlow<Int> = _ambient
 
     // ---- 패널 조작 ----
     fun setSoc(v: Int) = _state.update { it.copy(soc = v.coerceIn(0, 100)) }
@@ -68,7 +71,7 @@ class FakeVehicleGateway(
     }
 
     override suspend fun applyRest(seatMode: SeatMode, halfRecline: Boolean) {
-        set("Light.setAmbientLightBrightness(ROW_1_LEFT, ${clampTo(PleosVehicleGateway.AMBIENT_DIM, ambientRange)})")
+        setAmbientBrightness(PleosVehicleGateway.AMBIENT_DIM)
         set("Light.setAmbientLightBrightnessColor(ROW_1_LEFT, warm)")
         set("Light.setCabinLightSwitch(OFF)")
         set("HVAC.setHvacTemperature(ROW_1_LEFT, ${PleosVehicleGateway.REST_TEMP_C}, CELSIUS)")
@@ -84,7 +87,7 @@ class FakeVehicleGateway(
     override suspend fun restore(snapshot: CabinSnapshot) {
         restoreSeat(snapshot)
         set("Seat.setHvacSeatVentilation(ROW_1_LEFT, ${snapshot.seatVent})")
-        set("Light.setAmbientLightBrightness(ROW_1_LEFT, ${snapshot.ambientBrightness})")
+        snapshot.ambientBrightness?.let { setAmbientBrightness(it) }
         set("Light.setCabinLightSwitch(${if (snapshot.cabinLightOn == true) "ON" else "OFF"})")
         set("HVAC.setHvacTemperature(ROW_1_LEFT, ${snapshot.hvacTemp}, CELSIUS)")
         set("HVAC.setHvacFanSpeed(ROW_1_LEFT, ${snapshot.hvacFan})")
@@ -95,6 +98,13 @@ class FakeVehicleGateway(
         if (ms <= 0) return
         moveSeat("FORWARD", ms)
     }
+
+    override suspend fun setAmbientBrightness(value: Int) {
+        val v = clampTo(value, ambientRange)
+        if (set("Light.setAmbientLightBrightness(ROW_1_LEFT, $v)")) _ambient.value = v
+    }
+
+    override suspend fun setHvacFan(level: Int) { set("HVAC.setHvacFanSpeed(ROW_1_LEFT, $level)") }
 
     override fun stopSeatMotion() {
         if (!_state.value.seatMoving) return

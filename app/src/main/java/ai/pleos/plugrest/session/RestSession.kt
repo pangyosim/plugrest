@@ -8,12 +8,16 @@ import ai.pleos.plugrest.vehicle.VehicleState
 import ai.pleos.plugrest.vehicle.drivingRestricted
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlin.math.roundToInt
 
-enum class EndReason { TARGET_REACHED, CHARGING_STOPPED, USER, RESTRICTED }
+/** CHARGING_DONE: 출발 모드에서 충전 종료 감지(SOC 100% / 스위치 OFF+SOC 정체 5분) — 충전기 점유 연장 금지 (PRD §4.7 R1) */
+enum class EndReason { TARGET_REACHED, CHARGING_STOPPED, USER, RESTRICTED, DEPARTURE, CHARGING_DONE }
 
 sealed interface Phase {
     data object Idle : Phase
-    data class Resting(val target: Int, val startedAt: Long, val seatMode: SeatMode, val halfRecline: Boolean) : Phase
+    /** departAt != null 이면 출발 시각 모드(PRD §4.7, target은 100으로 두고 SOC로는 끝나지 않음). sunrise: 선라이즈 기상 진행 중(§4.8). */
+    data class Resting(val target: Int, val startedAt: Long, val seatMode: SeatMode, val halfRecline: Boolean,
+                       val departAt: Long? = null, val sunrise: Boolean = false) : Phase
     /** silent: 사용자가 "되돌리기"를 직접 눌러 즉시 복원하는 경우(예고 TTS·카운트다운 없음) */
     data class Restoring(val target: Int, val endsAt: Long, val reason: EndReason, val silent: Boolean = false) : Phase
     /** restored=false 이면 시트·조명·공조는 지금 상태 그대로. offerRestore: 주행 후 다시 정차했을 때 1회 "되돌릴까요?" 제안. */
@@ -33,6 +37,8 @@ class RestSession(
     private val restoreDelayMs: Long = 10_000L,
     /** 히스테리시스: 한 번 충전 중으로 판정되면 SOC 상승이 없어도 이 시간 동안 유지(버튼 깜빡임 방지). 포트 분리는 즉시 해제 */
     private val chargingHoldMs: Long = 90_000L,
+    /** 선라이즈 기상 시작 시점 = 종료 예정 이 시간 전. 데모 모드: 3분 → 30초 */
+    private val sunriseMs: Long = 3 * 60_000L,
     /** 실측 기울기로 인정하는 최소 데이터 구간. 데모 모드: 2분 → 40초 (PT 시연에서 1회째 세션을 길게 끌지 않게) */
     private val minSlopeSpanMs: Long = 2 * 60_000L,
     /** 충전 속도 학습 (PRD §4.6). 세션 종료 시 유효 기울기를 기록 */
@@ -75,6 +81,13 @@ class RestSession(
         return lastChargingAt != Long.MIN_VALUE && t - lastChargingAt <= chargingHoldMs
     }
 
+    /** ms 이상 된 샘플이 있고 그때보다 SOC가 오르지 않았으면 정체. 데이터가 그만큼 없으면 false(모름). */
+    private fun socStalledFor(ms: Long): Boolean {
+        val t = now()
+        val ref = history.lastOrNull { t - it.first >= ms } ?: return false
+        return history.last().second <= ref.second
+    }
+
     fun isDrivingRestricted(s: VehicleState): Boolean = s.drivingRestricted
 
     /** null이면 시작 가능. 아니면 버튼 아래 한 줄 이유. */
@@ -86,11 +99,11 @@ class RestSession(
         else -> null
     }
 
-    @Synchronized fun start(target: Int, seatMode: SeatMode, snapshot: CabinSnapshot, halfRecline: Boolean) {
+    @Synchronized fun start(target: Int, seatMode: SeatMode, snapshot: CabinSnapshot, halfRecline: Boolean, departAt: Long? = null) {
         this.snapshot = snapshot
         seatRestored = false
         sessionStartedAt = now()
-        _phase.value = Phase.Resting(target, sessionStartedAt, seatMode, halfRecline)
+        _phase.value = Phase.Resting(target, sessionStartedAt, seatMode, halfRecline, departAt)
     }
 
     /** 프로세스 재생성 후 복구. 2시간 지났으면 폐기(PRD v0.5). */
@@ -112,6 +125,18 @@ class RestSession(
         val slope = slopePctPerMin() ?: return null
         return etaMinutes(soc, target, slope, slope * ABOVE_80_FACTOR)
     }
+
+    /** 실측 기준 남은 ms(반올림 전). 선라이즈 트리거용 (검수 R2). 실측 없으면 null. */
+    private fun remainingMs(soc: Int, target: Int): Long? =
+        slopePctPerMin()?.let { (etaMinutesRaw(soc, target, it, it * ABOVE_80_FACTOR) * 60_000).toLong() }
+
+    /** 출발 시 예상 SOC: 실측 기울기 → 없으면 학습 기울기 → 없으면 null(가정 금지). ponytail: 80% 테이퍼 경계는 현재 구간 기울기로 단순화. */
+    @Synchronized fun predictSocAt(soc: Int, minutesLeft: Int): Int? =
+        (slopePctPerMin() ?: rates.slopeAt(soc))?.let { ((soc + it * minutesLeft) / 5.0).roundToInt() * 5 }?.coerceIn(soc, 100) // 5% 반올림(디자인 ⑪)
+
+    private fun sunriseDue(p: Phase.Resting, soc: Int?): Boolean =
+        if (p.departAt != null) now() >= p.departAt - sunriseMs
+        else soc != null && (remainingMs(soc, p.target) ?: Long.MAX_VALUE) <= sunriseMs
 
     /** Resting 종료 시 1회: 실측 기울기(최소 2분 데이터)가 있으면 학습 */
     private fun learn() { slopePctPerMin()?.let { rates.record(it, history.last().second) } }
@@ -136,8 +161,11 @@ class RestSession(
             is Phase.Resting -> when {
                 restricted -> { learn(); finish(Phase.Done(p.target, restored = false, EndReason.RESTRICTED)) }
                 now() - p.startedAt > MAX_SESSION_MS -> beginRestore(p.target, EndReason.USER) // 2시간 만료
-                s.soc != null && s.soc >= p.target -> beginRestore(p.target, EndReason.TARGET_REACHED)
+                p.departAt != null && now() >= p.departAt -> beginRestore(p.target, EndReason.DEPARTURE)
+                p.departAt == null && s.soc != null && s.soc >= p.target -> beginRestore(p.target, EndReason.TARGET_REACHED)
                 s.chargePortConnected == false -> beginRestore(p.target, EndReason.CHARGING_STOPPED)
+                p.departAt != null && (s.soc == 100 || (s.chargeSwitchOn == false && socStalledFor(STALL_MS))) -> beginRestore(p.target, EndReason.CHARGING_DONE)
+                !p.sunrise && sunriseDue(p, s.soc) -> _phase.value = p.copy(sunrise = true)
             }
             is Phase.Restoring -> if (restricted) finish(Phase.Done(p.target, restored = false, p.reason))
             is Phase.Done -> when {
@@ -211,6 +239,7 @@ class RestSession(
         const val HISTORY_MS = 10 * 60_000L
         const val SLOPE_WINDOW_MS = 5 * 60_000L
         const val MAX_SESSION_MS = 2 * 60 * 60_000L
+        const val STALL_MS = 5 * 60_000L
         // ponytail: 80% 초과 구간 감속 계수(추정). 실데이터로 교정.
         const val ABOVE_80_FACTOR = 0.5
     }

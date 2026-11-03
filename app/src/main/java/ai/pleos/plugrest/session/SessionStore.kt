@@ -13,6 +13,7 @@ class SessionStore(context: Context) {
         putBoolean("active", true)
         putInt("target", resting.target); putLong("startedAt", resting.startedAt)
         putString("seatMode", resting.seatMode.name); putBoolean("half", resting.halfRecline)
+        resting.departAt?.let { putLong("departAt", it) } ?: remove("departAt"); putBoolean("sunrise", resting.sunrise)
         putNullableInt("backrest", snapshot.backrestAngle); putNullableInt("vent", snapshot.seatVent)
         putNullableInt("ambB", snapshot.ambientBrightness); putNullableInt("ambC", snapshot.ambientColor)
         putNullableBool("cabin", snapshot.cabinLightOn); putNullableBool("hvacPower", snapshot.hvacPower); putNullableBool("recirc", snapshot.hvacRecirculation)
@@ -27,6 +28,7 @@ class SessionStore(context: Context) {
             // 구 저장값(HEAT 등)은 NONE으로 방어
             runCatching { SeatMode.valueOf(p.getString("seatMode", SeatMode.NONE.name)!!) }.getOrDefault(SeatMode.NONE),
             p.getBoolean("half", false),
+            departAt = if (p.contains("departAt")) p.getLong("departAt", 0L) else null, sunrise = p.getBoolean("sunrise", false),
         )
         val snap = CabinSnapshot(
             backrestAngle = int("backrest"), seatVent = int("vent"),

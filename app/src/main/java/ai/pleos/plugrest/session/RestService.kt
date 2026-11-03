@@ -40,10 +40,18 @@ class RestService : Service() {
     /** 차량 제어(applyRest/복원/선제 복원)는 항상 이 Job 하나. 주행 제한 진입 시 통째로 취소. */
     private var control: Job? = null
     private var sessionSeen = false // 시작 직후의 Idle(초기값)로 자기 종료하지 않기 위함
+    private var sunrise: Job? = null
+    private var resting: Job? = null // Resting 중 5초마다 evaluate (출발 시각·선라이즈는 차량 상태 변화 없이도 시각으로 전이)
 
     private fun control(block: suspend () -> Unit) {
         control?.cancel()
         control = scope.launch { block() }
+    }
+
+    /** 앞선 제어(applyRest)가 끝난 뒤 이어서 실행. 이후의 control{}(선제 복원·복원)에 취소된다 (검수 R3). */
+    private fun controlAfter(block: suspend () -> Unit): Job {
+        val prev = control
+        return scope.launch { prev?.join(); block() }.also { control = it }
     }
 
     private fun abortControl() {
@@ -71,12 +79,25 @@ class RestService : Service() {
         scope.launch {
             g.session.phase.collect { p ->
                 if (p !is Phase.Idle) sessionSeen = true
+                if (p !is Phase.Resting) { resting?.cancel(); resting = null; sunrise?.cancel(); sunrise = null }
                 when (p) {
-                    is Phase.Resting -> g.session.snapshot?.let { g.store.save(p, it) }
+                    is Phase.Resting -> {
+                        g.session.snapshot?.let { g.store.save(p, it) }
+                        if (resting == null) resting = launch { while (true) { delay(5_000); g.session.evaluate(g.gateway.state.value) } }
+                        // 선라이즈(PRD §4.8): applyRest 완료 후 control Job으로 램프. 조명 미지원이면 set 게이트가 건너뛰어 공조만.
+                        if (p.sunrise && sunrise == null) sunrise = controlAfter {
+                            val to = g.session.snapshot?.ambientBrightness ?: Sunrise.DEFAULT_TO
+                            Sunrise.run(g.gateway, ai.pleos.plugrest.vehicle.PleosVehicleGateway.AMBIENT_DIM, to, g.sunriseMs, g.sunriseStepMs,
+                                charging = g.session.isCharging(g.gateway.state.value))
+                        }
+                    }
                     is Phase.Restoring -> {
+                        val soc = g.gateway.state.value.soc?.let { "배터리 $it%. " } ?: ""
                         if (!p.silent) g.narrator.speak(when (p.reason) {
                             EndReason.TARGET_REACHED -> "목표 ${p.target}%에 도달했습니다. 10초 후 시트를 원래대로 되돌립니다."
                             EndReason.CHARGING_STOPPED -> "충전이 중단되었습니다. 10초 후 시트를 원래대로 되돌립니다."
+                            EndReason.DEPARTURE -> "출발 시각입니다. ${soc}10초 후 시트를 원래대로 되돌립니다."
+                            EndReason.CHARGING_DONE -> "충전이 끝났어요. ${soc}10초 후 시트를 원래대로 되돌립니다."
                             else -> "휴식 모드를 종료합니다. 10초 후 시트를 원래대로 되돌립니다."
                         })
                         countdown?.cancel()
@@ -112,16 +133,23 @@ class RestService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         val target = intent?.getIntExtra(EXTRA_TARGET, 0) ?: 0
+        val departMin = intent?.getIntExtra(EXTRA_DEPART, 0) ?: 0
         if (target > 0 && g.session.phase.value is Phase.Idle) {
             val seatMode = SeatMode.valueOf(intent?.getStringExtra(EXTRA_SEAT) ?: SeatMode.NONE.name)
             control {
                 // 뒷좌석 착좌 → 절반만. 못 읽으면(null) 보수적으로 절반 (PRD v0.5)
                 val halfRecline = g.gateway.state.value.rearSeatOccupied != false
                 val snapshot = g.gateway.readSnapshot()
-                g.session.start(target, seatMode, snapshot, halfRecline)
-                updateNotification("휴식 모드 진행 중 · 목표 $target%")
-                val eta = g.gateway.state.value.soc?.let { g.session.rates.estimateMinutes(it, target) }?.takeIf { it > 0 }
-                g.narrator.speak("휴식 모드를 시작합니다. 목표 $target%에 도달하면 깨워 드릴게요." + (eta?.let { " 지난 충전 기준 약 ${it}분 예상입니다." } ?: ""))
+                val departAt = if (departMin > 0) System.currentTimeMillis() + departMin * 60_000L else null
+                g.session.start(target, seatMode, snapshot, halfRecline, departAt)
+                if (departAt != null) { // 출발 시각 모드 (PRD §4.7)
+                    updateNotification("휴식 모드 진행 중 · 출발 ${departMin}분 후")
+                    g.narrator.speak("출발까지 ${departMin}분, 편히 쉬세요. 시간에 맞춰 깨워 드릴게요.")
+                } else {
+                    updateNotification("휴식 모드 진행 중 · 목표 $target%")
+                    val eta = g.gateway.state.value.soc?.let { g.session.rates.estimateMinutes(it, target) }?.takeIf { it > 0 }
+                    g.narrator.speak("휴식 모드를 시작합니다. 목표 $target%에 도달하면 깨워 드릴게요." + (eta?.let { " 지난 충전 기준 약 ${it}분 예상입니다." } ?: ""))
+                }
                 g.gateway.applyRest(seatMode, halfRecline)
             }
         }
@@ -158,9 +186,10 @@ class RestService : Service() {
         private const val NOTIF_ID = 1
         private const val EXTRA_TARGET = "target"
         private const val EXTRA_SEAT = "seat"
+        private const val EXTRA_DEPART = "depart"
 
-        fun start(context: Context, target: Int = 0, seatMode: SeatMode = SeatMode.NONE) {
-            val i = Intent(context, RestService::class.java).putExtra(EXTRA_TARGET, target).putExtra(EXTRA_SEAT, seatMode.name)
+        fun start(context: Context, target: Int = 0, seatMode: SeatMode = SeatMode.NONE, departMin: Int = 0) {
+            val i = Intent(context, RestService::class.java).putExtra(EXTRA_TARGET, target).putExtra(EXTRA_SEAT, seatMode.name).putExtra(EXTRA_DEPART, departMin)
             ContextCompat.startForegroundService(context, i)
         }
     }

@@ -220,6 +220,16 @@ class PleosVehicleGateway(context: Context) : VehicleGateway {
         )
     }
 
+    override suspend fun setAmbientBrightness(value: Int) {
+        val light = vehicle.getLight()
+        set(Feature.AMBIENT) { ok, err -> light.setAmbientLightBrightness(driver, clampTo(value, ambientRange), { _, _ -> ok(Unit) }, err) }
+    }
+
+    override suspend fun setHvacFan(level: Int) {
+        val hvac = vehicle.getHVAC()
+        set(Feature.HVAC) { ok, err -> hvac.setHvacFanSpeed(driver, level, { _, _ -> ok(Unit) }, err) }
+    }
+
     override suspend fun applyRest(seatMode: SeatMode, halfRecline: Boolean) {
         val seat = vehicle.getSeat(); val light = vehicle.getLight(); val hvac = vehicle.getHVAC()
         // 조명: 앰비언트 어둡게·따뜻하게, 실내등 OFF

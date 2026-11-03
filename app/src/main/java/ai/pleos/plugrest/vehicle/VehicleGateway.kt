@@ -62,4 +62,7 @@ interface VehicleGateway {
     suspend fun restoreSeat(snapshot: CabinSnapshot)
     /** 시트 이동 중 화면 터치 → 즉시 정지. */
     fun stopSeatMotion()
+    /** 선라이즈 기상용 단일 set (PRD §4.8). 미지원·주행 제한이면 무시. */
+    suspend fun setAmbientBrightness(value: Int)
+    suspend fun setHvacFan(level: Int)
 }

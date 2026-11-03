@@ -4,6 +4,7 @@ import ai.pleos.plugrest.session.ChargeRateMemory
 import ai.pleos.plugrest.session.RestService
 import ai.pleos.plugrest.session.RestSession
 import ai.pleos.plugrest.session.SessionStore
+import ai.pleos.plugrest.session.Sunrise
 import ai.pleos.plugrest.vehicle.AndroidNarrator
 import ai.pleos.plugrest.vehicle.FakeVehicleGateway
 import ai.pleos.plugrest.vehicle.Narrator
@@ -23,11 +24,15 @@ class Graph(context: Context) {
     val store = SessionStore(context)
     /** Activity가 보이는 동안은 서비스가 끝나도 게이트웨이를 유지 */
     @Volatile var activityVisible = false
+    /** 선라이즈 램프 길이. 데모 모드: 3분 → 30초 */
+    val sunriseMs = if (BuildConfig.DEMO) 30_000L else 3 * 60_000L
+    val sunriseStepMs = if (BuildConfig.DEMO) 10_000L else Sunrise.STEP_MS
     val session = RestSession(
         rates = ChargeRateMemory(store.loadRates(), store::saveRates),
         calculatingMs = if (BuildConfig.DEMO) 20_000L else 3 * 60_000L,
         chargingWindowMs = if (BuildConfig.DEMO) 20_000L else 3 * 60_000L,
         minSlopeSpanMs = if (BuildConfig.DEMO) 40_000L else 2 * 60_000L,
+        sunriseMs = sunriseMs,
     )
 
     init {
@@ -39,8 +44,9 @@ class Graph(context: Context) {
         }
     }
 
-    fun startRest(context: Context, target: Int, seatMode: SeatMode) {
-        RestService.start(context, target, seatMode)
+    /** departMin > 0 이면 출발 시각 모드 */
+    fun startRest(context: Context, target: Int, seatMode: SeatMode, departMin: Int = 0) {
+        RestService.start(context, target, seatMode, departMin)
     }
 }
 

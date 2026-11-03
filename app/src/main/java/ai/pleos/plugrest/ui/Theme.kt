@@ -19,6 +19,8 @@ object C {
     val textPrimary = Color(0xFFFFFFFF)
     val textSecondary = Color(0xFFB4B5B8)
     val textTertiary = Color(0xFF8A8B90) // bg 위에서만
+    val bgSunrise = Color(0xFF241C14)    // Resting 선라이즈 배경 (v0.7) — 이 위에선 restText만
+    val segTrack = Color(0xFF131417)     // 세그먼트 컨트롤 트랙 (v0.7)
     val primary = Color(0xFF0064FF)
     val charge = Color(0xFF43E0A0)
     val warn = Color(0xFFFFC75A)
@@ -51,6 +53,7 @@ object T {
     val bodyL = style(30, 38, FontWeight.Normal)
     val bodyS = style(26, 34, FontWeight.Normal)
     val labelM = style(24, 28, FontWeight.Normal)
+    val segment = style(28, 32, FontWeight.Bold) // 세그먼트 컨트롤 (v0.7)
     val labelS = style(20, 24, FontWeight.Normal) // "학습 기록 지우기" 텍스트 버튼, "실측" 태그 (v0.6)
 }
 

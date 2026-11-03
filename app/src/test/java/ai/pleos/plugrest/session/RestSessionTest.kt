@@ -77,6 +77,42 @@ class RestSessionTest {
     }
 
     @Test
+    fun departureMode_sunriseAt3MinBefore_endsAtTime_notAtSoc100() {
+        val departAt = clock + 15 * 60_000L
+        session.start(100, SeatMode.NONE, CabinSnapshot(), halfRecline = false, departAt = departAt)
+        session.onSoc(60)
+        // SOC 100%는 충전 종료 감지 → 기상 흐름(CHARGING_DONE), 그 전엔 시각까지 유지
+        clock += 5 * 60_000L; session.onSoc(70)
+        session.evaluate(charging.copy(soc = 70))
+        assertTrue(session.phase.value is Phase.Resting)
+        // 선라이즈: 출발 3분 전부터
+        clock = departAt - 3 * 60_000L - 1; session.evaluate(charging.copy(soc = 80))
+        assertFalse((session.phase.value as Phase.Resting).sunrise)
+        clock = departAt - 3 * 60_000L; session.evaluate(charging.copy(soc = 80))
+        assertTrue((session.phase.value as Phase.Resting).sunrise)
+        // 출발 시각 도달 → DEPARTURE
+        clock = departAt; session.evaluate(charging.copy(soc = 85))
+        assertEquals(EndReason.DEPARTURE, (session.phase.value as Phase.Restoring).reason)
+    }
+
+    @Test
+    fun departureMode_chargingDone_endsEarly() {
+        session.start(100, SeatMode.NONE, CabinSnapshot(), halfRecline = false, departAt = clock + 45 * 60_000L)
+        session.evaluate(charging.copy(soc = 100))
+        assertEquals(EndReason.CHARGING_DONE, (session.phase.value as Phase.Restoring).reason)
+        // 스위치 OFF + SOC 정체 5분
+        session.reset()
+        session.start(100, SeatMode.NONE, CabinSnapshot(), halfRecline = false, departAt = clock + 45 * 60_000L)
+        session.onSoc(90)
+        clock += 4 * 60_000L; session.onSoc(90)
+        session.evaluate(charging.copy(soc = 90, chargeSwitchOn = false))
+        assertTrue(session.phase.value is Phase.Resting) // 정체 5분 미만 → 유지
+        clock += 60_000L; session.onSoc(90)
+        session.evaluate(charging.copy(soc = 90, chargeSwitchOn = false))
+        assertEquals(EndReason.CHARGING_DONE, (session.phase.value as Phase.Restoring).reason)
+    }
+
+    @Test
     fun cancelDuringCountdown_leavesCabinAsIs() {
         session.start(80, SeatMode.VENT, CabinSnapshot(), halfRecline = false)
         session.requestStop()
