@@ -302,3 +302,22 @@ docx §5·PRD §5·PT `:152`는 "check…Capabilities 사전 확인을 **추가�
 **결론: 차단 0건.** E1은 1줄 수정 권장, E2·E3 선택.
 
 **6차 후속 (08:41):** E1 해소 — `VehicleGateway.kt:37` 빈 범위 무시 + 테스트(`clampTo(20, 50..10) == 20`), 14/14 통과(23:41). E2·E3는 PM 결정으로 미반영(보수적 처리 유지, 안전 문제 없음). **코드 리뷰 잔여 0건.**
+
+---
+
+## 7차 — 충전 속도 학습 (PRD §4.6) (2026-11-03)
+
+대상: `ChargeRateMemory.kt`(신규), `RestSession.kt`(learn·etaMinutes), `SessionStore.kt`(charge_rate prefs), `RestService.kt:123`(시작 TTS), `App.kt:27`, `MainActivity.kt:59-60`, `ui/Screens.kt:135-190`, 테스트 2+2줄. **검수 측 재실행 16/16 통과**(ChargeRateMemoryTest 2, RestSessionTest 10, FakeVehicleGatewayTest 4).
+
+이상 없음: EMA·n 누적, ≤0 기울기 무시, 한쪽 버킷만 있을 때 테이퍼 추정, `clear()`가 세션 prefs와 분리됨, `allowBackup=false` 유지, learn이 Resting 종료 경로(복원 시작·주행 제한)에서만 1회 호출됨, 프로세스 재생성 후엔 history가 비어 학습 안 함(안전), 개인정보처리방침 §3·영문 요약에 학습값 보관이 이미 반영됨.
+
+| ID | 등급 | 내용 | 제안 |
+|---|---|---|---|
+| F1 | 중 | **"실측" 태그가 실측이 아닐 때도 붙음.** `Screens.kt:188` 조건이 `remaining != null`뿐인데, `remainingMinutes`는 기울기가 없으면(SOC가 5분간 안 오름·완속·포트만 연결) `FALLBACK_PCT_PER_MIN`(1.08%/분 가정)으로 값을 낸다. 데모 빌드만이 아니라 **실차 완속에서도** 가정값에 "실측"이 붙는다. | 실측 여부를 UI에 넘긴다(예: `remainingMinutes`가 기울기 출처를 함께 반환, 또는 `hasMeasuredSlope()` 노출). 이 경우 태그를 숨긴다. |
+| F2 | 하 | **학습값이 있어도 남은 시간 계산은 고정 가정값을 씀.** 실측 기울기가 없을 때 `RestSession.kt` `remainingMinutes`는 학습 EMA가 있어도 `FALLBACK`만 쓴다. 계산 중 끝 ↔ 실측 확보 사이(또는 완속)에 화면 숫자가 학습값 보조 줄보다 엉뚱해질 수 있다. | 폴백을 `rates.estimateMinutes(soc,target)` → 없으면 `FALLBACK` 순으로. 한 줄. |
+| F3 | 하 | **튀는 기울기도 영구 학습.** 데모 패널 SOC 슬라이더(`FakeVehicleGateway.setSoc`)로 2분 넘게 걸쳐 크게 끌어올리면 10%/분 이상이 기록되고, α=0.3이라 몇 세션 동안 "보통 약 5분"이 남는다. PT 리허설 기기에서 그대로 보일 수 있다. 실차 SOC 점프에도 같은 영향. | `record`에서 비현실 값 무시(예: `> 5.0`%/분 ≈ 350kW/77kWh 초과). 한 줄. |
+| F4 | 참고 | 학습 기울기 = 세션 **마지막 5분** 창. 목표(80) 직전 구간이라 ≤80 버킷이 실제 평균보다 느리게(예상이 길게) 잡힌다. 보수적 방향이라 안전. 80 걸침 혼합(개발 보고 한계)과 같이 실데이터로 교정할 항목. | 미반영 가능. |
+
+**판정:** F1은 사용자에게 사실과 다른 표시라 반영 권장(데모 빌드 20초 케이스도 같은 수정으로 해소). F2·F3은 각각 한 줄이라 함께 권장. F4는 보류 가능.
+
+**7차 PM 결정:** F1~F3 채택, F4 보류. 개발이 데모 학습 구간 40초 단축(실차 2분 유지)과 함께 반영 예정 → 8차 확인 항목: 데모 단축이 실차(release) 빌드 동작에 영향 없음.

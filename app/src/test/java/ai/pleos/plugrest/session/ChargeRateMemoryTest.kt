@@ -21,6 +21,7 @@ class ChargeRateMemoryTest {
         // 50→80 @1.3%/min = 23.1분 → 5분 반올림 25
         assertEquals(25, m.estimateMinutes(50, 80))
         m.record(0.0, 60)                 // 무효 기울기는 무시
+        m.record(12.0, 60)                // 비현실 기울기(>5%/분, 데모 슬라이더)도 무시 (F3)
         assertEquals(2, m.rates.value.count)
 
         m.clear()

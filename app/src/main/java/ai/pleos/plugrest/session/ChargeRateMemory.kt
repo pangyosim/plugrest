@@ -21,7 +21,7 @@ class ChargeRateMemory(initial: Rates = Rates(), private val onChange: (Rates) -
 
     /** ponytail: 버킷은 기울기 창 끝 SOC로 고름(창이 80%를 걸치면 섞임). 실데이터로 문제 되면 창을 80에서 쪼갠다. */
     fun record(pctPerMin: Double, soc: Int) {
-        if (pctPerMin <= 0) return
+        if (pctPerMin <= 0 || pctPerMin > MAX_PCT_PER_MIN) return // 비현실 기울기(데모 슬라이더 등)는 학습하지 않음 (검수 F3)
         _rates.update { r -> if (soc <= 80) r.copy(below80 = r.below80 + pctPerMin) else r.copy(above80 = r.above80 + pctPerMin) }
         onChange(_rates.value)
     }
@@ -40,7 +40,11 @@ class ChargeRateMemory(initial: Rates = Rates(), private val onChange: (Rates) -
 
     fun clear() { _rates.value = Rates(); onChange(_rates.value) }
 
-    companion object { const val ALPHA = 0.3 }
+    companion object {
+        const val ALPHA = 0.3
+        /** ≈350kW / 77kWh. 이보다 빠르면 실측이 아니라 입력 오류로 본다 */
+        const val MAX_PCT_PER_MIN = 5.0
+    }
 }
 
 /** 남은 분: 80% 이하/초과 구간 기울기 분리, 5분 단위 반올림(최소 5). soc ≥ target → 0 */

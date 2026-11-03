@@ -57,7 +57,7 @@ class MainActivity : ComponentActivity() {
                     when (val p = phase) {
                         Phase.Idle -> IdleScreen(s, g.session.blockReason(s), g.session.rates) { target, seat -> g.startRest(this@MainActivity, target, seat) }
                         is Phase.Resting -> RestingScreen(p, s, g.session.remainingMinutes(s.soc ?: 0, p.target, p.startedAt).also { now },
-                            learned = g.session.rates.estimateMinutes(s.soc ?: 0, p.target),
+                            learned = g.session.rates.estimateMinutes(s.soc ?: 0, p.target), measured = g.session.hasMeasuredSlope(),
                             onStop = { g.session.requestStop() }, onTouch = { g.gateway.stopSeatMotion() })
                         is Phase.Restoring -> RestoringScreen(p, s, now, onCancel = { g.gateway.stopSeatMotion(); g.session.cancelRestore() }, onTouch = { g.gateway.stopSeatMotion() })
                         is Phase.Done -> DoneScreen(p, s,

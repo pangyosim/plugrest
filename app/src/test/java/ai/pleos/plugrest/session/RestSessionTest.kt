@@ -26,6 +26,14 @@ class RestSessionTest {
         session.onSoc(50)
         clock += 60_000; session.onSoc(51)
         assertNull(session.remainingMinutes(51, 80, resting.startedAt))
+        // 실측 기울기 전(2분 미만)엔 학습값 우선, 학습값도 없으면 고정 가정 1.08%/min → 29/1.08=27 → 25 (F2)
+        clock += 120_000 // 3분 경과, 데이터는 1분 구간뿐
+        assertFalse(session.hasMeasuredSlope())
+        assertEquals(25, session.remainingMinutes(51, 80, resting.startedAt))
+        session.rates.record(2.0, 51)
+        assertEquals(15, session.remainingMinutes(51, 80, resting.startedAt)) // 29/2.0=14.5 → 15
+        session.rates.clear()
+        clock -= 120_000
 
         // 1%/min → 남은 (80-55)=25분, 5분 단위
         clock += 60_000; session.onSoc(52)

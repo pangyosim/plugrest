@@ -27,6 +27,7 @@ class Graph(context: Context) {
         rates = ChargeRateMemory(store.loadRates(), store::saveRates),
         calculatingMs = if (BuildConfig.DEMO) 20_000L else 3 * 60_000L,
         chargingWindowMs = if (BuildConfig.DEMO) 20_000L else 3 * 60_000L,
+        minSlopeSpanMs = if (BuildConfig.DEMO) 40_000L else 2 * 60_000L,
     )
 
     init {

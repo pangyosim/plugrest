@@ -33,6 +33,8 @@ class RestSession(
     private val restoreDelayMs: Long = 10_000L,
     /** 히스테리시스: 한 번 충전 중으로 판정되면 SOC 상승이 없어도 이 시간 동안 유지(버튼 깜빡임 방지). 포트 분리는 즉시 해제 */
     private val chargingHoldMs: Long = 90_000L,
+    /** 실측 기울기로 인정하는 최소 데이터 구간. 데모 모드: 2분 → 40초 (PT 시연에서 1회째 세션을 길게 끌지 않게) */
+    private val minSlopeSpanMs: Long = 2 * 60_000L,
     /** 충전 속도 학습 (PRD §4.6). 세션 종료 시 유효 기울기를 기록 */
     val rates: ChargeRateMemory = ChargeRateMemory(),
 ) {
@@ -107,20 +109,24 @@ class RestSession(
     @Synchronized fun remainingMinutes(soc: Int, target: Int, startedAt: Long): Int? {
         if (soc >= target) return 0
         if (now() - startedAt < calculatingMs) return null
-        val slope = slopePctPerMin() ?: FALLBACK_PCT_PER_MIN
+        // 실측 기울기 → 없으면 학습값(검수 F2) → 없으면 고정 가정
+        val slope = slopePctPerMin() ?: return rates.estimateMinutes(soc, target) ?: etaMinutes(soc, target, FALLBACK_PCT_PER_MIN, FALLBACK_PCT_PER_MIN * ABOVE_80_FACTOR)
         return etaMinutes(soc, target, slope, slope * ABOVE_80_FACTOR)
     }
 
     /** Resting 종료 시 1회: 실측 기울기(최소 2분 데이터)가 있으면 학습 */
     private fun learn() { slopePctPerMin()?.let { rates.record(it, history.last().second) } }
 
+    /** 실측 기울기(2분 이상 데이터) 확보 여부 — "실측" 태그 표시 조건 */
+    @Synchronized fun hasMeasuredSlope(): Boolean = slopePctPerMin() != null
+
     private fun slopePctPerMin(): Double? {
         val t = now()
         val window = history.filter { t - it.first <= SLOPE_WINDOW_MS }
         if (window.size < 2) return null
-        val dtMin = (window.last().first - window.first().first) / 60_000.0
-        if (dtMin < MIN_SLOPE_SPAN_MIN) return null // 데이터 구간이 짧으면 기본 가정 사용(슬라이더 점프·초기 노이즈 방지)
-        val slope = (window.last().second - window.first().second) / dtMin
+        val dtMs = window.last().first - window.first().first
+        if (dtMs < minSlopeSpanMs) return null // 데이터 구간이 짧으면 기본 가정 사용(슬라이더 점프·초기 노이즈 방지)
+        val slope = (window.last().second - window.first().second) / (dtMs / 60_000.0)
         return if (slope > 0) slope else null
     }
 
@@ -205,7 +211,6 @@ class RestSession(
     companion object {
         const val HISTORY_MS = 10 * 60_000L
         const val SLOPE_WINDOW_MS = 5 * 60_000L
-        const val MIN_SLOPE_SPAN_MIN = 2.0
         const val MAX_SESSION_MS = 2 * 60 * 60_000L
         // ponytail: 급속 50kW / 아이오닉5 롱레인지 77.4kWh 가정 = 1.08 %/min. 실차 데이터로 교정하는 보정 상수.
         const val FALLBACK_PCT_PER_MIN = 50.0 / 77.4 * 100.0 / 60.0
