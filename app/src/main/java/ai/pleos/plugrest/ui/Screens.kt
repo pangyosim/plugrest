@@ -206,7 +206,7 @@ fun RestingScreen(p: Phase.Resting, s: VehicleState, remaining: Int?, learned: I
     // 디자인 ⑫: 선라이즈는 배경 1회 교체 + 글자 전부 restText(restTextDim 대비 부족)
     val dim = if (p.sunrise) C.restText else C.restTextDim
     Screen(if (p.sunrise) C.bgSunrise else C.bgRest, Modifier.pointerInput(Unit) { detectTapGestures { onTouch() } }) {
-        Text((if (departMinutes != null) "휴식 중 · 출발 ${departMinutes}분 후" else "휴식 중 · 목표 ${p.target}%") + DEMO_TAG, style = T.labelM, color = dim)
+        Text((if (departMinutes != null) "휴식 중 · 출발 시각 모드" else "휴식 중 · 목표 ${p.target}%") + DEMO_TAG, style = T.labelM, color = dim)
         Spacer(Modifier.height(D.gap))
         if (departMinutes != null) { // 디자인 ⑪: 출발 모드 — 링 안 "출발까지 N분", 아래 배터리·출발 시 예상
             SocRing(s.soc ?: 0, null, C.restCharge, C.restText, Modifier.weight(1f, fill = false)) { d ->
@@ -269,7 +269,7 @@ fun RestoringScreen(p: Phase.Restoring, s: VehicleState, now: Long, onCancel: ()
         return
     }
     Screen(C.bgRest, Modifier.pointerInput(Unit) { detectTapGestures { onTouch() } }) {
-        Text(p.reason.title(p.target), style = T.labelM, color = C.restTextDim)
+        Text(if (p.reason == EndReason.DEPARTURE) "출발 시각" else p.reason.title(p.target), style = T.labelM, color = C.restTextDim) // Restoring 라벨은 "출발 시각", Done 제목만 "출발 시각이에요"
         Spacer(Modifier.height(D.gap))
         if (p.reason == EndReason.TARGET_REACHED) Text("목표 ${p.target}%에 도달했습니다", style = T.bodyL, color = C.restText, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
         if (p.reason == EndReason.DEPARTURE) Text("출발 시각입니다 · 배터리 ${s.soc ?: "--"}%", style = T.bodyL, color = C.restText, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
@@ -372,7 +372,7 @@ private val DEPART_MINUTES = listOf(15, 30, 45) + if (BuildConfig.DEMO) listOf(2
 
 private fun EndReason.title(target: Int) = when (this) {
     EndReason.TARGET_REACHED -> "목표 $target% 도달"; EndReason.CHARGING_STOPPED -> "충전 중단"
-    EndReason.DEPARTURE -> "출발 시각"; EndReason.CHARGING_DONE -> "충전이 끝났어요"; else -> "휴식 모드 종료"
+    EndReason.DEPARTURE -> "출발 시각이에요"; EndReason.CHARGING_DONE -> "충전이 끝났어요"; else -> "휴식 모드 종료"
 }
 
 private fun Gear.label() = when (this) { Gear.PARK -> "P"; Gear.DRIVE -> "D"; Gear.REVERSE -> "R"; Gear.NEUTRAL -> "N"; Gear.UNKNOWN -> "-" }
