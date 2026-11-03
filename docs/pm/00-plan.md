@@ -28,7 +28,7 @@
 ## 사용자(사람)만 할 수 있는 일
 - 참가 부문(대학/일반), 팀 구성·이름, 서명 → docx 01/03/04
 - Android Studio에서 Pleos 에뮬레이터 설치 (docs/research/03 참고)
-- ~~GitHub repo 생성~~ (완료: https://github.com/pangyosim/plugrest, 공개) · 이메일 제출
+- ~~GitHub repo 생성~~ (완료: https://github.com/plugrest/plugrest, 공개) · 이메일 제출
 - 외부 코드 클론/빌드 권한 허용 (auto mode에서 에이전트 차단됨)
 - 앱명 최종 확인(약 10분): KIPRIS 9류·42류 "충전쉼표", "Plug & Rest" 검색, Instagram 핸들 plugrest, .app 도메인 — 절차는 docs/submission/name-check.md
 - 숏폼 게시용 팀/앱 계정 생성(실명 미노출)
@@ -56,8 +56,9 @@
 - 2026-11-03: 코드 리뷰(32-code-review.md) 차단 2(서비스 조기 stopSelf, 제한 진입 시 시트 제어 미중단)·높음 4 → 개발 선수정 지시, 스크린샷·녹화는 그 뒤로. 개인정보처리방침은 마케팅이 작성.
 - 2026-11-03: 개인정보처리방침 초안 완료(docs/submission/privacy-policy.md, 코드 대조 완료). 문의 이메일·시행일 플레이스홀더는 사용자 기입.
 - 2026-11-03: 코드 리뷰 차단·높음 수정 완료(테스트 8/8, B1은 AVD 실측 확인). 스크린샷 6장·Fake 녹화 81초·apk/·.gitignore 준비. 결정: 충전 판정 90초 히스테리시스, Done 10분 타임아웃. 다음: 검수 재검, 디자인 2차 대조, 기획 시안 PDF·docx, 마케팅 영상 편집.
-- 2026-11-03: git init + 첫 커밋 + 공개 저장소 https://github.com/pangyosim/plugrest 푸시(사용자 지시). 커밋 author는 GitHub noreply 이메일로 설정(개인 이메일 비노출). 개발 세션 사용 한도 도달 → 재촬영은 서브에이전트가 수행. 영상 v1(demo_fake_v1.mp4 75초, shortform_v1.mp4 45초, 무음) 완료.
-- 사용자 확인 필요: GitHub 계정명 pangyosim이 실명 기반이면 "공유 링크에 개발자 실명 노출 금지" 규정 저촉 가능 → 팀/앱 이름 조직 계정(예: plugrest-app) 생성 후 repo 이전 권장.
+- 2026-11-03: git init + 첫 커밋 + 공개 저장소 https://github.com/plugrest/plugrest 푸시(사용자 지시). 커밋 author는 GitHub noreply 이메일로 설정(개인 이메일 비노출). 개발 세션 사용 한도 도달 → 재촬영은 서브에이전트가 수행. 영상 v1(demo_fake_v1.mp4 75초, shortform_v1.mp4 45초, 무음) 완료.
+- 사용자 확인 필요: GitHub 개인 계정명이 실명 기반이면 "공유 링크에 개발자 실명 노출 금지" 규정 저촉 가능 → 팀/앱 이름 조직 계정(예: plugrest-app) 생성 후 repo 이전 권장.
 - 2026-11-03: MVP 완료 커밋 d30264f(test 13/13, 검수 3차 차단 0, 디자인 3차 승인). 제출 문서 세트 완성(docx·시안 PDF·영상 v1·숏폼 v1·README·처리방침·이메일 초안). 남은 입력: 팀명·부문, GitHub 계정 실명 여부, 에뮬레이터 설치. 검수가 제출 패키지 문서 점검(33) 진행 중.
 - 2026-11-03: 제출 패키지 재점검 통과(33 재점검: 문서 3종·코드 일치). 1차 제출본은 사용자 입력(팀명·부문, GitHub 계정, 에뮬레이터)만 남음.
 - 2026-11-03: 사용자 확정 — 개인 참가(1인), 일반 부문, 팀명 표기는 프로젝트명 "충전쉼표" 사용. 충전 속도 학습 기능 승인(PRD §4.6). GitHub 계정명이 실명 기반으로 확인 → 중립 조직 계정으로 저장소 이전 필요(사용자가 조직 생성 → PM이 transfer). 실명은 저장소·02 섹션 어디에도 기록하지 않음.
+- 2026-11-03: 저장소를 조직 plugrest로 이전 → https://github.com/plugrest/plugrest (구 URL 자동 리다이렉트). 문서 링크 일괄 교체. 이후 커밋 author는 plugrest. 과거 커밋 author(개인 계정명) 재작성은 force push가 필요해 사용자 결정 대기. 조직 멤버 공개 설정은 비공개 유지(사용자).

@@ -42,6 +42,9 @@ class RestSessionTest {
         val restoring = session.phase.value as Phase.Restoring
         assertEquals(EndReason.TARGET_REACHED, restoring.reason)
         assertEquals(clock + 10_000, restoring.endsAt)
+        // 세션 종료 시 실측 기울기(1%/min, ≤80 버킷) 학습 (PRD §4.6)
+        assertEquals(1, session.rates.rates.value.below80.n)
+        assertEquals(1.0, session.rates.rates.value.below80.ema, 1e-9)
 
         // 브레이크 선제 복원은 1회만
         assertTrue(session.claimSeatRestore())

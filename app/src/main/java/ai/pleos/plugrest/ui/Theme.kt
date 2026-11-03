@@ -51,6 +51,7 @@ object T {
     val bodyL = style(30, 38, FontWeight.Normal)
     val bodyS = style(26, 34, FontWeight.Normal)
     val labelM = style(24, 28, FontWeight.Normal)
+    val labelS = style(20, 24, FontWeight.Normal) // "학습 기록 지우기" 텍스트 버튼, "실측" 태그 (v0.6)
 }
 
 object D {

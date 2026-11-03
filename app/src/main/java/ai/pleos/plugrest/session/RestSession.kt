@@ -8,7 +8,6 @@ import ai.pleos.plugrest.vehicle.VehicleState
 import ai.pleos.plugrest.vehicle.drivingRestricted
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlin.math.roundToInt
 
 enum class EndReason { TARGET_REACHED, CHARGING_STOPPED, USER, RESTRICTED }
 
@@ -34,6 +33,8 @@ class RestSession(
     private val restoreDelayMs: Long = 10_000L,
     /** 히스테리시스: 한 번 충전 중으로 판정되면 SOC 상승이 없어도 이 시간 동안 유지(버튼 깜빡임 방지). 포트 분리는 즉시 해제 */
     private val chargingHoldMs: Long = 90_000L,
+    /** 충전 속도 학습 (PRD §4.6). 세션 종료 시 유효 기울기를 기록 */
+    val rates: ChargeRateMemory = ChargeRateMemory(),
 ) {
     private val _phase = MutableStateFlow<Phase>(Phase.Idle)
     val phase: StateFlow<Phase> = _phase
@@ -107,11 +108,11 @@ class RestSession(
         if (soc >= target) return 0
         if (now() - startedAt < calculatingMs) return null
         val slope = slopePctPerMin() ?: FALLBACK_PCT_PER_MIN
-        val below80 = (minOf(target, 80) - soc).coerceAtLeast(0)
-        val above80 = (target - maxOf(soc, 80)).coerceAtLeast(0)
-        val minutes = below80 / slope + above80 / (slope * ABOVE_80_FACTOR)
-        return ((minutes / 5.0).roundToInt() * 5).coerceAtLeast(5)
+        return etaMinutes(soc, target, slope, slope * ABOVE_80_FACTOR)
     }
+
+    /** Resting 종료 시 1회: 실측 기울기(최소 2분 데이터)가 있으면 학습 */
+    private fun learn() { slopePctPerMin()?.let { rates.record(it, history.last().second) } }
 
     private fun slopePctPerMin(): Double? {
         val t = now()
@@ -128,7 +129,7 @@ class RestSession(
         val restricted = isDrivingRestricted(s)
         when (val p = _phase.value) {
             is Phase.Resting -> when {
-                restricted -> finish(Phase.Done(p.target, restored = false, EndReason.RESTRICTED))
+                restricted -> { learn(); finish(Phase.Done(p.target, restored = false, EndReason.RESTRICTED)) }
                 now() - p.startedAt > MAX_SESSION_MS -> beginRestore(p.target, EndReason.USER) // 2시간 만료
                 s.soc != null && s.soc >= p.target -> beginRestore(p.target, EndReason.TARGET_REACHED)
                 s.chargePortConnected == false -> beginRestore(p.target, EndReason.CHARGING_STOPPED)
@@ -153,6 +154,7 @@ class RestSession(
     }
 
     private fun beginRestore(target: Int, reason: EndReason) {
+        learn()
         _phase.value = Phase.Restoring(target, now() + restoreDelayMs, reason)
     }
 

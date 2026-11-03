@@ -120,7 +120,8 @@ class RestService : Service() {
                 val snapshot = g.gateway.readSnapshot()
                 g.session.start(target, seatMode, snapshot, halfRecline)
                 updateNotification("휴식 모드 진행 중 · 목표 $target%")
-                g.narrator.speak("휴식 모드를 시작합니다. 목표 $target%에 도달하면 깨워 드릴게요.")
+                val eta = g.gateway.state.value.soc?.let { g.session.rates.estimateMinutes(it, target) }?.takeIf { it > 0 }
+                g.narrator.speak("휴식 모드를 시작합니다. 목표 $target%에 도달하면 깨워 드릴게요." + (eta?.let { " 지난 충전 기준 약 ${it}분 예상입니다." } ?: ""))
                 g.gateway.applyRest(seatMode, halfRecline)
             }
         }

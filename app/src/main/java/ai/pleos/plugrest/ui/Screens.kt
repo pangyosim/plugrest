@@ -1,6 +1,7 @@
 package ai.pleos.plugrest.ui
 
 import ai.pleos.plugrest.BuildConfig
+import ai.pleos.plugrest.session.ChargeRateMemory
 import ai.pleos.plugrest.session.EndReason
 import ai.pleos.plugrest.session.Phase
 import ai.pleos.plugrest.vehicle.FakeVehicleGateway
@@ -53,6 +54,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -130,9 +132,11 @@ fun tick(): Long {
 // ---------- 화면 ----------
 
 @Composable
-fun IdleScreen(s: VehicleState, blockReason: String?, onStart: (Int, SeatMode) -> Unit) {
+fun IdleScreen(s: VehicleState, blockReason: String?, rates: ChargeRateMemory, onStart: (Int, SeatMode) -> Unit) {
     var target by remember { mutableStateOf(80) }
     var seat by remember { mutableStateOf(SeatMode.NONE) }
+    val learned by rates.rates.collectAsState()
+    val eta = s.soc?.let { rates.estimateMinutes(it, target) }?.takeIf { it > 0 }
     Screen(C.bg) {
         Text("충전쉼표", style = T.titleL, color = C.textPrimary)
         Spacer(Modifier.height(D.section))
@@ -151,8 +155,12 @@ fun IdleScreen(s: VehicleState, blockReason: String?, onStart: (Int, SeatMode) -
             listOf(80, 90).forEach { t -> Chip("$t%", target == t, { target = t }, Modifier.weight(1f)) }
         }
         Spacer(Modifier.height(D.gap))
-        Text("시작 후 실제 충전 속도로 남은 시간을 계산해요", style = T.bodyS, color = C.textSecondary)
-        Spacer(Modifier.height(D.section))
+        Text(if (eta != null) "지난 충전 ${learned.count}회 기준, $target%까지 보통 약 ${eta}분" else "시작 후 실제 충전 속도로 남은 시간을 계산해요", style = T.bodyS, color = C.textSecondary)
+        // 디자인 ⑦: labelS·밑줄·터치 64dp·왼쪽 정렬, 텍스트 버튼이 여백 역할이라 아래 간격 48→24
+        if (learned.count > 0) Box(Modifier.height(64.dp).clickable { rates.clear() }, contentAlignment = Alignment.CenterStart) {
+            Text("학습 기록 지우기", style = T.labelS.copy(textDecoration = TextDecoration.Underline), color = C.textTertiary)
+        }
+        Spacer(Modifier.height(if (learned.count > 0) D.gap else D.section))
         Text("시트 통풍", style = T.labelM, color = C.textSecondary)
         Spacer(Modifier.height(D.gap))
         Row(horizontalArrangement = Arrangement.spacedBy(D.gap)) {
@@ -167,17 +175,24 @@ fun IdleScreen(s: VehicleState, blockReason: String?, onStart: (Int, SeatMode) -
 }
 
 @Composable
-fun RestingScreen(p: Phase.Resting, s: VehicleState, remaining: Int?, onStop: () -> Unit, onTouch: () -> Unit) {
+fun RestingScreen(p: Phase.Resting, s: VehicleState, remaining: Int?, learned: Int?, onStop: () -> Unit, onTouch: () -> Unit) {
     Screen(C.bgRest, Modifier.pointerInput(Unit) { detectTapGestures { onTouch() } }) {
         Text("휴식 중 · 목표 ${p.target}%$DEMO_TAG", style = T.labelM, color = C.restTextDim)
         Spacer(Modifier.height(D.gap))
         SocRing(s.soc ?: 0, p.target, C.restCharge, C.restText, Modifier.weight(1f, fill = false))
         Spacer(Modifier.weight(0.01f))
-        Text("남은 시간", style = T.labelM, color = C.restTextDim, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
+        // 디자인 ⑧⑨: 계산 중엔 학습값 보조 줄, 실측이 생기면 보조 줄 대신 "실측" 태그 (학습값을 보여준 세션만)
+        val learnedEta = learned?.takeIf { it > 0 }
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
+            Text("남은 시간", style = T.labelM, color = C.restTextDim)
+            if (remaining != null && learnedEta != null) Text("실측", style = T.labelS, color = C.restTextDim,
+                modifier = Modifier.padding(start = 16.dp).border(2.dp, C.restTextDim, RoundedCornerShape(8.dp)).padding(horizontal = 12.dp, vertical = 4.dp))
+        }
         Box(Modifier.fillMaxWidth().height(120.dp), contentAlignment = Alignment.Center) {
             if (remaining == null) Text("계산 중…", style = T.titleL, color = C.restTextDim)
             else Text("약 ${remaining}분", style = T.displayL, color = C.restText)
         }
+        if (remaining == null && learnedEta != null) Text("지난 충전 기준 약 ${learnedEta}분", style = T.bodyS, color = C.restTextDim, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
         Spacer(Modifier.height(D.gap))
         if (p.halfRecline) Text("뒷좌석에 사람이 있어 등받이를 절반만 젖혔어요", style = T.bodyS, color = C.restTextDim, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
         // 착좌 안내가 있으면 등받이 줄은 중복이라 생략(3줄 유지)

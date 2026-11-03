@@ -39,6 +39,17 @@ class SessionStore(context: Context) {
 
     fun clear() = p.edit { clear() }
 
+    // ---- 충전 속도 학습 (PRD §4.6) — 세션 파일과 분리해 clear()에 지워지지 않게 ----
+    private val r = context.getSharedPreferences("charge_rate", Context.MODE_PRIVATE)
+    fun loadRates() = ChargeRateMemory.Rates(
+        ChargeRateMemory.Bucket(r.getFloat("bEma", 0f).toDouble(), r.getInt("bN", 0)),
+        ChargeRateMemory.Bucket(r.getFloat("aEma", 0f).toDouble(), r.getInt("aN", 0)),
+    )
+    fun saveRates(x: ChargeRateMemory.Rates) = r.edit {
+        putFloat("bEma", x.below80.ema.toFloat()); putInt("bN", x.below80.n)
+        putFloat("aEma", x.above80.ema.toFloat()); putInt("aN", x.above80.n)
+    }
+
     private fun int(k: String) = if (p.contains(k)) p.getInt(k, 0) else null
     private fun bool(k: String) = if (p.contains(k)) p.getBoolean(k, false) else null
     private fun android.content.SharedPreferences.Editor.putNullableInt(k: String, v: Int?) { if (v == null) remove(k) else putInt(k, v) }

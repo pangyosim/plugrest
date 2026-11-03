@@ -55,8 +55,9 @@ class MainActivity : ComponentActivity() {
             Column(Modifier.fillMaxSize().navigationBarsPadding()) { // 시스템 제스처 바와 Fake 패널 핸들이 겹치지 않게
                 androidx.compose.foundation.layout.Box(Modifier.weight(1f)) {
                     when (val p = phase) {
-                        Phase.Idle -> IdleScreen(s, g.session.blockReason(s)) { target, seat -> g.startRest(this@MainActivity, target, seat) }
+                        Phase.Idle -> IdleScreen(s, g.session.blockReason(s), g.session.rates) { target, seat -> g.startRest(this@MainActivity, target, seat) }
                         is Phase.Resting -> RestingScreen(p, s, g.session.remainingMinutes(s.soc ?: 0, p.target, p.startedAt).also { now },
+                            learned = g.session.rates.estimateMinutes(s.soc ?: 0, p.target),
                             onStop = { g.session.requestStop() }, onTouch = { g.gateway.stopSeatMotion() })
                         is Phase.Restoring -> RestoringScreen(p, s, now, onCancel = { g.gateway.stopSeatMotion(); g.session.cancelRestore() }, onTouch = { g.gateway.stopSeatMotion() })
                         is Phase.Done -> DoneScreen(p, s,

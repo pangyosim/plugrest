@@ -22,8 +22,9 @@
 좌석 착좌 정보는 앉아 있는지 여부만 확인합니다. 누가 앉았는지는 식별하지 않습니다.
 
 ## 3. 보관 기간과 파기
-- 휴식 모드를 시작하면 원래대로 되돌리기 위해 **시트·조명·공조 설정값(스냅샷)**과 휴식 세션 정보(목표 배터리, 시작 시각, 시트 모드(통풍 끔/켬), 절반 리클라인 여부)만 기기 내부 저장소에 저장합니다.
-- 휴식 모드가 끝나면(목표 도달, 충전 포트 분리, 사용자 종료 등) 즉시 삭제합니다. 앱이 비정상 종료되어 남은 경우에는 저장 후 **2시간**이 지나면 더 이상 쓰지 않고, 다음 실행 때 삭제합니다.
+- 휴식 모드를 시작하면 원래대로 되돌리기 위해 **시트·조명·공조 설정값(스냅샷)**과 휴식 세션 정보(목표 배터리, 시작 시각, 시트 모드(통풍 끔/켬), 절반 리클라인 여부)를 기기 내부 저장소에 저장합니다.
+- 다음 충전부터 예상 시간을 바로 보여주기 위해 **충전 속도 학습값**(배터리 상승률의 평균과 관측 횟수)을 기기 내부 저장소에 저장합니다. 앱 안의 '학습 기록 지우기'로 언제든 삭제할 수 있습니다.
+- 스냅샷과 세션 정보는 휴식 모드가 끝나면(목표 도달, 충전 포트 분리, 사용자 종료 등) 즉시 삭제합니다. 앱이 비정상 종료되어 남은 경우에는 저장 후 **2시간**이 지나면 더 이상 쓰지 않고, 다음 실행 때 삭제합니다. 충전 속도 학습값은 사용자가 지우거나 앱을 삭제할 때까지 보관합니다.
 - 위 정보 외에는 저장하지 않습니다. 앱 데이터는 기기 백업 대상에서 제외됩니다. 앱을 삭제하면 모든 데이터가 함께 삭제됩니다.
 
 ## 4. 네트워크 사용
@@ -50,6 +51,6 @@
 ### English Summary
 - Plug & Rest collects **no personal data**: no account, server, location, ads, or analytics.
 - Vehicle signals (battery level, charge port/switch, gear, seat/light/climate settings, seat occupancy, window state) are processed **only on the in-vehicle device** and never transmitted.
-- Only a snapshot of seat, light, and climate settings (plus target level, start time, seat mode, and half-recline flag) is stored locally. It is deleted when the rest session ends, and a leftover snapshot older than **2 hours** is discarded on the next launch.
+- Only a snapshot of seat, light, and climate settings (plus target level, start time, seat mode, and half-recline flag) is stored locally, plus a learned charge-rate value (average battery rise rate and sample count) that is kept until the user clears it in the app ("학습 기록 지우기") or uninstalls. The snapshot is deleted when the rest session ends, and a leftover snapshot older than **2 hours** is discarded on the next launch.
 - The app has no own server. Voice guidance runs in the TTS SDK's ON_DEVICE mode. The app itself sends no data out; the TTS SDK may use the network for service verification, and the app passes no vehicle or personal data to it.
 - No third-party sharing. Contact: {contact@example.com}. Effective: {YYYY-MM-DD}.

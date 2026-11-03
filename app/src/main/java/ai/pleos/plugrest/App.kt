@@ -1,5 +1,6 @@
 package ai.pleos.plugrest
 
+import ai.pleos.plugrest.session.ChargeRateMemory
 import ai.pleos.plugrest.session.RestService
 import ai.pleos.plugrest.session.RestSession
 import ai.pleos.plugrest.session.SessionStore
@@ -23,6 +24,7 @@ class Graph(context: Context) {
     /** Activity가 보이는 동안은 서비스가 끝나도 게이트웨이를 유지 */
     @Volatile var activityVisible = false
     val session = RestSession(
+        rates = ChargeRateMemory(store.loadRates(), store::saveRates),
         calculatingMs = if (BuildConfig.DEMO) 20_000L else 3 * 60_000L,
         chargingWindowMs = if (BuildConfig.DEMO) 20_000L else 3 * 60_000L,
     )

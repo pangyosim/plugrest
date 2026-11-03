@@ -39,6 +39,7 @@ header label{margin-left:12px}
 .bodyL{font-size:30px;line-height:38px}
 .bodyS{font-size:26px;line-height:34px}
 .labelM{font-size:24px;line-height:28px}
+.labelS{font-size:20px;line-height:24px}
 .sec{color:var(--textSecondary)} .ter{color:var(--textTertiary)}
 
 /* components */
@@ -57,6 +58,8 @@ header label{margin-left:12px}
 .row svg{flex:none;width:40px;height:40px}
 .spacer{flex:1}
 .center{text-align:center}
+.textBtn{background:none;border:0;font:inherit;color:var(--textTertiary);height:64px;padding:0;align-self:flex-start;text-decoration:underline;text-underline-offset:4px}
+.tag{display:inline-block;border:2px solid var(--restTextDim);color:var(--restTextDim);border-radius:8px;padding:4px 12px;vertical-align:middle;margin-left:16px}
 .ring{position:relative;width:520px;height:520px;margin:0 auto}
 .ring svg{position:absolute;inset:0}
 .ring .in{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
@@ -253,6 +256,86 @@ header label{margin-left:12px}
     </div>
   </section>
 
+  <!-- v0.6 충전 속도 학습 (PRD §4.6). 학습 기록 n ≥ 1일 때만 -->
+  <section class="col">
+    <p><b>⑦ Idle · 학습됨</b> — n ≥ 1. 보조 문구만 바뀌고 주 버튼은 그대로 1개</p>
+    <div class="frame">
+      <div class="status labelM">
+        <svg viewBox="0 0 24 24"><path d="M13 2 5 14h6l-2 8 10-13h-6l2-7z" fill="var(--charge)"/></svg>
+        <span>P · 충전 중</span>
+      </div>
+      <div style="margin-top:96px">
+        <div class="labelM sec">현재 배터리</div>
+        <div class="displayL">50%</div>
+      </div>
+      <div style="margin-top:var(--section)">
+        <div class="labelM sec" style="margin-bottom:var(--gap)">목표 충전량</div>
+        <div class="chips"><div class="chip on">80%</div><div class="chip">90%</div></div>
+        <!-- 학습값은 실제 정보라 textSecondary로 한 단계 올림. N = 선택한 목표% 기준 -->
+        <div class="bodyS sec" style="margin-top:var(--gap)">지난 충전 3회 기준, 80%까지 보통 약 25분</div>
+        <!-- 주 버튼과 멀리 둠(오탭 방지). 글자는 20sp지만 터치 높이 64dp -->
+        <button class="textBtn labelS">학습 기록 지우기</button>
+      </div>
+      <div style="margin-top:var(--gap)">
+        <div class="labelM sec" style="margin-bottom:var(--gap)">시트 통풍</div>
+        <div class="chips"><div class="chip on">끔</div><div class="chip">켬</div></div>
+      </div>
+      <div class="spacer"></div>
+      <div class="bodyS ter" style="margin-bottom:var(--gap)">시트를 젖히고 조명·공조를 휴식용으로 바꿉니다. 끝나면 원래대로 돌려놓아요.</div>
+      <button class="btnL primary">휴식 모드 시작</button>
+    </div>
+  </section>
+
+  <section class="col">
+    <p><b>⑧ Resting · 계산 중 + 학습값</b> — "계산 중…" 아래 학습값 보조 줄</p>
+    <div class="frame rest">
+      <div class="labelM" style="color:var(--restTextDim)">휴식 중 · 목표 80%</div>
+      <div class="ring" style="margin-top:56px">
+        <svg viewBox="0 0 520 520">
+          <circle cx="260" cy="260" r="246" fill="none" stroke="var(--track)" stroke-width="28"/>
+          <circle cx="260" cy="260" r="246" fill="none" stroke="var(--restCharge)" stroke-width="28"
+                  stroke-dasharray="788.3 1545.6" transform="rotate(-90 260 260)" stroke-linecap="butt"/>
+          <line x1="260" y1="0" x2="260" y2="40" stroke="var(--restText)" stroke-width="6" transform="rotate(288 260 260)"/>
+        </svg>
+        <div class="in"><div class="displayXL" style="color:var(--restText)">51%</div></div>
+      </div>
+      <div class="center" style="margin-top:var(--section)">
+        <div class="labelM" style="color:var(--restTextDim)">남은 시간</div>
+        <div class="titleL" style="color:var(--restTextDim);height:120px;display:flex;align-items:center;justify-content:center">계산 중…</div>
+        <div class="bodyS" style="color:var(--restTextDim)">지난 충전 기준 약 25분</div>
+      </div>
+      <div class="spacer"></div>
+      <div class="bodyS center" style="color:var(--restTextDim);margin-bottom:var(--gap)">
+        시트 · 공조 22°C 적용 중<br>앰비언트 조명 · 이 차량 미지원
+      </div>
+      <button class="btnL rest">종료</button>
+    </div>
+  </section>
+
+  <section class="col">
+    <p><b>⑨ Resting · 실측</b> — 학습값을 보여준 세션만 "실측" 라벨. 보조 줄은 사라짐</p>
+    <div class="frame rest">
+      <div class="labelM" style="color:var(--restTextDim)">휴식 중 · 목표 80%</div>
+      <div class="ring" style="margin-top:56px">
+        <svg viewBox="0 0 520 520">
+          <circle cx="260" cy="260" r="246" fill="none" stroke="var(--track)" stroke-width="28"/>
+          <circle cx="260" cy="260" r="246" fill="none" stroke="var(--restCharge)" stroke-width="28"
+                  stroke-dasharray="958.3 1545.6" transform="rotate(-90 260 260)" stroke-linecap="butt"/>
+          <line x1="260" y1="0" x2="260" y2="40" stroke="var(--restText)" stroke-width="6" transform="rotate(288 260 260)"/>
+        </svg>
+        <div class="in"><div class="displayXL" style="color:var(--restText)">62%</div></div>
+      </div>
+      <div class="center" style="margin-top:var(--section)">
+        <div class="labelM" style="color:var(--restTextDim)">남은 시간</div>
+        <div class="displayL" style="color:var(--restText)">약 20분<span class="tag labelS">실측</span></div>
+      </div>
+      <div class="spacer"></div>
+      <div class="bodyS center" style="color:var(--restTextDim);margin-bottom:var(--gap)">
+        시트 · 공조 22°C 적용 중<br>앰비언트 조명 · 이 차량 미지원
+      </div>
+      <button class="btnL rest">종료</button>
+    </div>
+  </section>
 
 </div>
 <script>

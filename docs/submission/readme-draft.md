@@ -4,8 +4,9 @@
 
 > 전기차 충전을 시작하면 원탭으로 시트·조명·공조를 휴식 공간으로 바꾸고, SOC를 남은 분으로 보여 주며, 목표 충전량에 이르면 음성으로 깨워 원래 상태로 되돌려 주는 Pleos Connect 충전 대기 앱.
 
-- 팀: 충전쉼표
-- 저장소: https://github.com/pangyosim/plugrest
+- 프로젝트명: 충전쉼표 (개인 참가)
+- 개인 참가로 팀명 대신 프로젝트명을 씁니다(APK 파일명 `충전쉼표_PlugRest_release.apk`도 같은 이유).
+- 저장소: https://github.com/plugrest/plugrest
 - 출품: 2026 현대자동차그룹 차량용 앱 개발 공모전
 
 ## 주요 기능
@@ -16,6 +17,7 @@
   - 공조를 22°C·풍량 1단·외기 유입으로 맞춥니다.
   - 목표 SOC는 앱이 감시만 합니다. **차량 충전 한도 설정은 바꾸지 않습니다.**
 - **SOC → 남은 분**: 처음 3분은 "계산 중"으로 표시하고, 이후 최근 5분 SOC 상승률로 남은 시간을 5분 단위로 보여 줍니다. 80% 이후 느려지는 구간은 보정합니다.
+- **충전 속도 학습**: 세션이 끝날 때 실측 충전 속도(80% 이하·초과 구간 따로)를 기기 안에만 저장합니다. 두 번째 충전부터 대기 화면에 "지난 충전 n회 기준, 80%까지 보통 약 N분"을, 휴식 화면의 "계산 중" 구간에 "지난 충전 기준 약 N분"을 보여 주고, 실측이 잡히면 실측으로 바꿉니다. 계정·VIN 없이 이 기기 = 이 차량으로 취급하며, 대기 화면 설정의 "학습 기록 지우기"로 초기화합니다.
 - **목표 도달 깨움 + 자동 복원**: 목표 SOC에 이르면 "목표 80%에 도달했습니다"라고 음성으로 알리고, 10초 카운트다운 뒤 시트·조명·공조를 시작 전 상태로 되돌립니다. 완료 화면을 확인하지 않으면 30초 간격으로 최대 3회 다시 알린 뒤 종료합니다.
   - "취소"를 누르면 지금 상태 그대로 끝냅니다. 시트가 움직이는 중 화면을 터치하면 즉시 멈춥니다.
   - 정차 중 브레이크를 밟으면 출발 의도로 보고 시트를 먼저 되돌립니다.
@@ -36,7 +38,7 @@
 
 ### B. 소스 빌드
 ```bash
-git clone https://github.com/pangyosim/plugrest.git
+git clone https://github.com/plugrest/plugrest.git
 cd plugrest/app                    # app/ 폴더가 Gradle 루트(단일 모듈)
 ./gradlew assembleRelease          # 결과: build/outputs/apk/release/PlugRest-release.apk (app/ 기준)
 ./gradlew installDebug             # 실행 중인 에뮬레이터에 바로 설치 (build/outputs/apk/debug/PlugRest-debug.apk)
@@ -122,7 +124,7 @@ cd plugrest/app                    # app/ 폴더가 Gradle 루트(단일 모듈)
 ---
 
 ## 제출 전 확인 (README 이전 시 삭제)
-- [x] 팀명 확정(충전쉼표) — `{팀명}`·APK 파일명 교체 완료
+- [x] 개인 참가 확정 — 팀명 대신 프로젝트명 충전쉼표, APK 파일명 교체 완료
 - [x] 빌드 산출물 `PlugRest-release.apk`를 `apk/충전쉼표_PlugRest_release.apk`로 복사
 - [ ] CONTROL_* 권한이 normal 레벨인지 확인(앱 마켓 사전 승인 대상일 수 있음)
 - [ ] Gear 도메인 에뮬레이터 실측 결과(안 되면 시연 1번 기대 화면 수정)
