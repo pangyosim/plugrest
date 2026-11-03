@@ -36,6 +36,9 @@ val VehicleState.drivingRestricted: Boolean
 /** capability로 받은 범위가 있으면 그 안으로 자른다. 범위를 모르면 그대로. */
 fun clampTo(value: Int, range: IntRange?): Int = range?.takeIf { !it.isEmpty() }?.let { value.coerceIn(it) } ?: value // 빈 범위(min>max)는 무시
 
+/** 앰비언트 밝기 비율(0~100%) → capability 범위의 실제 값. 범위를 모르면 0~100 가정 (검수 I2). */
+fun ambientFromPct(pct: Int, range: IntRange?): Int = range?.takeIf { !it.isEmpty() }?.let { it.first + (it.last - it.first) * pct / 100 } ?: pct
+
 /** 휴식 모드 시작 전 차량 상태. 종료 시 그대로 되돌린다. null = 읽지 못함(복원도 건너뜀). */
 data class CabinSnapshot(
     val backrestAngle: Int? = null,
@@ -65,4 +68,6 @@ interface VehicleGateway {
     /** 선라이즈 기상용 단일 set (PRD §4.8). 미지원·주행 제한이면 무시. */
     suspend fun setAmbientBrightness(value: Int)
     suspend fun setHvacFan(level: Int)
+    /** 밝기 비율 → 이 차량의 실제 값 (capability 범위 기준) */
+    fun ambientLevel(pct: Int): Int = pct
 }

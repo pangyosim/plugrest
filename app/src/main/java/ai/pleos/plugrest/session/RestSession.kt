@@ -8,7 +8,6 @@ import ai.pleos.plugrest.vehicle.VehicleState
 import ai.pleos.plugrest.vehicle.drivingRestricted
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlin.math.roundToInt
 
 /** CHARGING_DONE: 출발 모드에서 충전 종료 감지(SOC 100% / 스위치 OFF+SOC 정체 5분) — 충전기 점유 연장 금지 (PRD §4.7 R1) */
 enum class EndReason { TARGET_REACHED, CHARGING_STOPPED, USER, RESTRICTED, DEPARTURE, CHARGING_DONE }
@@ -130,9 +129,9 @@ class RestSession(
     private fun remainingMs(soc: Int, target: Int): Long? =
         slopePctPerMin()?.let { (etaMinutesRaw(soc, target, it, it * ABOVE_80_FACTOR) * 60_000).toLong() }
 
-    /** 출발 시 예상 SOC: 실측 기울기 → 없으면 학습 기울기 → 없으면 null(가정 금지). ponytail: 80% 테이퍼 경계는 현재 구간 기울기로 단순화. */
+    /** 출발 시 예상 SOC: 실측 기울기(80% 초과는 ×0.5) → 없으면 학습값 → 없으면 null(가정 금지). 5% 반올림(디자인 ⑪) */
     @Synchronized fun predictSocAt(soc: Int, minutesLeft: Int): Int? =
-        (slopePctPerMin() ?: rates.slopeAt(soc))?.let { ((soc + it * minutesLeft) / 5.0).roundToInt() * 5 }?.coerceIn(soc, 100) // 5% 반올림(디자인 ⑪)
+        slopePctPerMin()?.let { predictSoc(soc, minutesLeft, it, it * ABOVE_80_FACTOR) } ?: rates.predictSoc(soc, minutesLeft)
 
     private fun sunriseDue(p: Phase.Resting, soc: Int?): Boolean =
         if (p.departAt != null) now() >= p.departAt - sunriseMs

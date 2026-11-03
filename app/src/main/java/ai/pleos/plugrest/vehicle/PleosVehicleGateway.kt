@@ -220,6 +220,8 @@ class PleosVehicleGateway(context: Context) : VehicleGateway {
         )
     }
 
+    override fun ambientLevel(pct: Int): Int = ambientFromPct(pct, ambientRange)
+
     override suspend fun setAmbientBrightness(value: Int) {
         val light = vehicle.getLight()
         set(Feature.AMBIENT) { ok, err -> light.setAmbientLightBrightness(driver, clampTo(value, ambientRange), { _, _ -> ok(Unit) }, err) }
@@ -233,7 +235,7 @@ class PleosVehicleGateway(context: Context) : VehicleGateway {
     override suspend fun applyRest(seatMode: SeatMode, halfRecline: Boolean) {
         val seat = vehicle.getSeat(); val light = vehicle.getLight(); val hvac = vehicle.getHVAC()
         // 조명: 앰비언트 어둡게·따뜻하게, 실내등 OFF
-        set(Feature.AMBIENT) { ok, err -> light.setAmbientLightBrightness(driver, clampTo(AMBIENT_DIM, ambientRange), { _, _ -> ok(Unit) }, err) }
+        set(Feature.AMBIENT) { ok, err -> light.setAmbientLightBrightness(driver, ambientLevel(AMBIENT_DIM_PCT), { _, _ -> ok(Unit) }, err) }
         set(Feature.AMBIENT) { ok, err -> light.setAmbientLightBrightnessColor(driver, AMBIENT_WARM, { _, _ -> ok(Unit) }, err) }
         set(Feature.CABIN_LIGHT) { ok, err -> light.setCabinLightSwitch(LightSwitch.OFF, { ok(Unit) }, err) }
         // 공조: 22°C, 풍량 1단, 외기 유입, 전원 ON
@@ -337,7 +339,7 @@ class PleosVehicleGateway(context: Context) : VehicleGateway {
         private const val TAG = "PleosVehicle"
         private const val CALL_TIMEOUT_MS = 3_000L
         // ponytail: 실차/에뮬레이터 값 확인 후 교정하는 상수들
-        const val AMBIENT_DIM = 20            // 밝기(0~100 가정)
+        const val AMBIENT_DIM_PCT = 10        // 어둡게 = 범위 최소 + 10% (검수 I2, PM). 범위 미확인이면 0~100 가정
         const val AMBIENT_WARM = 0xFFFFB36B.toInt() // ARGB 따뜻한 주황
         const val REST_TEMP_C = 22f
         const val REST_FAN = 1

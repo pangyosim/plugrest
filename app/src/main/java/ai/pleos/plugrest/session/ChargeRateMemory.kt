@@ -41,8 +41,8 @@ class ChargeRateMemory(initial: Rates = Rates(), private val onChange: (Rates) -
     /** 지난 충전 기준 예상 분. 기록이 전혀 없으면 null. */
     fun estimateMinutes(soc: Int, target: Int): Int? = slopes()?.let { (b, a) -> etaMinutes(soc, target, b, a) }
 
-    /** 현재 SOC 구간의 학습 기울기(%/분). 출발 시 SOC 예측용. */
-    fun slopeAt(soc: Int): Double? = slopes()?.let { (b, a) -> if (soc <= 80) b else a }
+    /** 학습 기울기로 minutes 뒤 예상 SOC. 기록 없으면 null. */
+    fun predictSoc(soc: Int, minutes: Int): Int? = slopes()?.let { (b, a) -> predictSoc(soc, minutes, b, a) }
 
     fun clear() { _rates.value = Rates(); onChange(_rates.value) }
 
@@ -59,6 +59,14 @@ fun etaMinutesRaw(soc: Int, target: Int, slopeBelow80: Double, slopeAbove80: Dou
     val below80 = (minOf(target, 80) - soc).coerceAtLeast(0)
     val above80 = (target - maxOf(soc, 80)).coerceAtLeast(0)
     return below80 / slopeBelow80 + above80 / slopeAbove80
+}
+
+/** minutes 뒤 예상 SOC: 80%까지는 slopeBelow80, 초과 구간은 slopeAbove80(테이퍼, 검수 I5). 5% 반올림, 현재 SOC 이상·100 이하. */
+fun predictSoc(soc: Int, minutes: Int, slopeBelow80: Double, slopeAbove80: Double): Int {
+    val minutesTo80 = if (soc < 80) (80 - soc) / slopeBelow80 else 0.0
+    val raw = if (minutes <= minutesTo80) soc + slopeBelow80 * minutes
+              else maxOf(soc, 80).toDouble() + slopeAbove80 * (minutes - minutesTo80)
+    return ((raw / 5.0).roundToInt() * 5).coerceIn(soc, 100)
 }
 
 /** 표시용 남은 분: 5분 단위 반올림(최소 5). soc ≥ target → 0 */

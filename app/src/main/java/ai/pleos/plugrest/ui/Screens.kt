@@ -55,7 +55,6 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
-import kotlin.math.roundToInt
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
@@ -158,8 +157,7 @@ fun IdleScreen(s: VehicleState, blockReason: String?, rates: ChargeRateMemory, o
     var departMin by remember { mutableStateOf(30) }
     val learned by rates.rates.collectAsState()
     val eta = s.soc?.let { rates.estimateMinutes(it, target) }?.takeIf { it > 0 }
-    // 출발 시 예상 SOC(학습 기울기만, 가정 금지). 5% 반올림
-    val departSoc = s.soc?.let { soc -> rates.slopeAt(soc)?.let { (((soc + it * departMin) / 5.0).roundToInt() * 5).coerceIn(soc, 100) } }
+    val departSoc = s.soc?.let { rates.predictSoc(it, departMin) } // 학습값만, 가정 금지
     Screen(C.bg) {
         Text("충전쉼표", style = T.titleL, color = C.textPrimary)
         Spacer(Modifier.height(D.section))
@@ -208,8 +206,7 @@ fun RestingScreen(p: Phase.Resting, s: VehicleState, remaining: Int?, learned: I
     // 디자인 ⑫: 선라이즈는 배경 1회 교체 + 글자 전부 restText(restTextDim 대비 부족)
     val dim = if (p.sunrise) C.restText else C.restTextDim
     Screen(if (p.sunrise) C.bgSunrise else C.bgRest, Modifier.pointerInput(Unit) { detectTapGestures { onTouch() } }) {
-        if (p.sunrise) Text(if (Feature.AMBIENT in s.unsupported) "곧 깨워 드릴게요" else "곧 깨워 드릴게요 · 조명을 천천히 밝히는 중", style = T.bodyS.copy(fontWeight = FontWeight.Bold), color = C.restText)
-        else Text((if (departMinutes != null) "휴식 중 · 출발 ${departMinutes}분 후" else "휴식 중 · 목표 ${p.target}%") + DEMO_TAG, style = T.labelM, color = dim)
+        Text((if (departMinutes != null) "휴식 중 · 출발 ${departMinutes}분 후" else "휴식 중 · 목표 ${p.target}%") + DEMO_TAG, style = T.labelM, color = dim)
         Spacer(Modifier.height(D.gap))
         if (departMinutes != null) { // 디자인 ⑪: 출발 모드 — 링 안 "출발까지 N분", 아래 배터리·출발 시 예상
             SocRing(s.soc ?: 0, null, C.restCharge, C.restText, Modifier.weight(1f, fill = false)) { d ->
@@ -242,6 +239,8 @@ fun RestingScreen(p: Phase.Resting, s: VehicleState, remaining: Int?, learned: I
             if (remaining == null && learnedEta != null) Text("지난 충전 기준 약 ${learnedEta}분", style = T.bodyS, color = dim, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
         }
         Spacer(Modifier.height(D.gap))
+        // 디자인 ⑫ M1: 선라이즈 문구는 하단 상태줄 첫 줄(헤더의 데모 고지는 유지)
+        if (p.sunrise) Text(if (Feature.AMBIENT in s.unsupported) "곧 깨워 드릴게요" else "곧 깨워 드릴게요 · 조명을 천천히 밝히는 중", style = T.bodyS.copy(fontWeight = FontWeight.Bold), color = C.restText, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
         if (p.halfRecline) Text("뒷좌석에 사람이 있어 등받이를 절반만 젖혔어요", style = T.bodyS, color = dim, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
         // 착좌 안내가 있으면 등받이 줄은 중복이라 생략(3줄 유지)
         val seatLine = when {
@@ -373,7 +372,7 @@ private val DEPART_MINUTES = listOf(15, 30, 45) + if (BuildConfig.DEMO) listOf(2
 
 private fun EndReason.title(target: Int) = when (this) {
     EndReason.TARGET_REACHED -> "목표 $target% 도달"; EndReason.CHARGING_STOPPED -> "충전 중단"
-    EndReason.DEPARTURE -> "출발 시각"; EndReason.CHARGING_DONE -> "충전 완료"; else -> "휴식 모드 종료"
+    EndReason.DEPARTURE -> "출발 시각"; EndReason.CHARGING_DONE -> "충전이 끝났어요"; else -> "휴식 모드 종료"
 }
 
 private fun Gear.label() = when (this) { Gear.PARK -> "P"; Gear.DRIVE -> "D"; Gear.REVERSE -> "R"; Gear.NEUTRAL -> "N"; Gear.UNKNOWN -> "-" }

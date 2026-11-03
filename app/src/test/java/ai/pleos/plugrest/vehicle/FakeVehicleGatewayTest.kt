@@ -55,6 +55,8 @@ class FakeVehicleGatewayTest {
     fun clampTo_respectsCapabilityRange_orPassesThroughWhenUnknown() {
         assertEquals(20, clampTo(20, 0..100))
         assertEquals(30, clampTo(20, 30..100))   // 최소값 아래 → 최소값
+        // 앰비언트 비율 → 범위 값 (I2): 0..10 범위에서 10%=1, 70%=7, 범위 모르면 그대로
+        assertEquals(1, ambientFromPct(10, 0..10)); assertEquals(7, ambientFromPct(70, 0..10)); assertEquals(70, ambientFromPct(70, null))
         assertEquals(60, clampTo(120, 0..60))    // 최대값 위 → 최대값
         assertEquals(120, clampTo(120, null))    // 범위 모르면 그대로
         assertEquals(20, clampTo(20, 50..10))    // 차량이 min>max를 주면 무시 (E1)

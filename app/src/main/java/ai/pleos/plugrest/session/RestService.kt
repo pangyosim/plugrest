@@ -86,8 +86,8 @@ class RestService : Service() {
                         if (resting == null) resting = launch { while (true) { delay(5_000); g.session.evaluate(g.gateway.state.value) } }
                         // 선라이즈(PRD §4.8): applyRest 완료 후 control Job으로 램프. 조명 미지원이면 set 게이트가 건너뛰어 공조만.
                         if (p.sunrise && sunrise == null) sunrise = controlAfter {
-                            val to = g.session.snapshot?.ambientBrightness ?: Sunrise.DEFAULT_TO
-                            Sunrise.run(g.gateway, ai.pleos.plugrest.vehicle.PleosVehicleGateway.AMBIENT_DIM, to, g.sunriseMs, g.sunriseStepMs,
+                            val to = g.session.snapshot?.ambientBrightness ?: g.gateway.ambientLevel(Sunrise.DEFAULT_TO_PCT)
+                            Sunrise.run(g.gateway, g.gateway.ambientLevel(ai.pleos.plugrest.vehicle.PleosVehicleGateway.AMBIENT_DIM_PCT), to, g.sunriseMs, g.sunriseStepMs,
                                 charging = g.session.isCharging(g.gateway.state.value))
                         }
                     }
@@ -112,15 +112,16 @@ class RestService : Service() {
                     is Phase.Done -> {
                         countdown?.cancel()
                         g.store.clear()
-                        updateNotification("휴식 모드 종료 · 목표 ${p.target}%")
+                        updateNotification("휴식 모드 종료 · " + when (p.reason) { EndReason.DEPARTURE -> "출발 시각"; EndReason.CHARGING_DONE -> "충전이 끝났어요"; else -> "목표 ${p.target}%" })
                         if (p.offerRestore) g.narrator.speak("시트를 원래대로 되돌릴까요?")
                         // 차량 상태 변화가 없어도 2시간 만료가 적용되도록 1회 타이머 (검수 D2)
                         if (!p.restored && expiry == null) expiry = launch { delay(g.session.sessionRemainingMs() + 1_000); g.session.evaluate(g.gateway.state.value) }
-                        // 사용자 반응 없으면 30초 간격 최대 3회 다시 깨움 (PRD v0.5) — 복원 완료·정차 상태에서만
-                        if (p.reason == EndReason.TARGET_REACHED && p.restored && wakeRepeat == null) wakeRepeat = launch {
+                        // 사용자 반응 없으면 30초 간격 최대 3회 다시 깨움 (PRD v0.5) — 복원 완료·정차 상태에서만. 출발 시각·충전 종료도 동일 (검수 I1)
+                        val wake = when (p.reason) { EndReason.TARGET_REACHED -> "목표 ${p.target}%에 도달했습니다."; EndReason.DEPARTURE -> "출발 시각입니다."; EndReason.CHARGING_DONE -> "충전이 끝났어요."; else -> null }
+                        if (wake != null && p.restored && wakeRepeat == null) wakeRepeat = launch {
                             repeat(3) {
                                 delay(30_000)
-                                if (g.session.phase.value is Phase.Done && !g.gateway.state.value.drivingRestricted) g.narrator.speak("목표 ${p.target}%에 도달했습니다.")
+                                if (g.session.phase.value is Phase.Done && !g.gateway.state.value.drivingRestricted) g.narrator.speak(wake)
                             }
                             if (g.session.phase.value is Phase.Done) g.session.reset() // 재안내 3회 끝 → 세션 종료
                         }

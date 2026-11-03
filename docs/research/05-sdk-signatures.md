@@ -302,7 +302,7 @@ Pleos Connect 에뮬레이터(2.1.0, API 34) 설치 후 Virtual Console과 함�
 | 5 | SOC 리스너 `registerEvBatteryStateOfCharge` | Console SOC 슬라이더 50→60 | 링·숫자 즉시 갱신 | 폴링으로 교체(refresh 10초) | |
 | 6 | **등받이 각도 반영** `moveSeatBackrestAngle(BACKWARD/STOP)` + `getCurrentSeatBackrestAnglePosition` | 휴식 시작 후 Console Seat 값 | 각도 값이 변함 | 변하지 않으면 시연에서 시트 항목 제외("이 차량 미지원" 표시) / 반영되면 시간 기반→각도 목표 기반으로 코드 교체 (`PleosVehicleGateway.RECLINE_MS`) | |
 | 7 | 통풍/열선 `setHvacSeatVentilation` / `setHvacSeatTemperature` 범위 | `checkSeatVentilationCapabilities` 로그 | Console Seat 값 변경 | `SEAT_LEVEL` 상수 조정 | |
-| 8 | **앰비언트 값 범위** `setAmbientLightBrightness`(0~100?) / `setAmbientLightBrightnessColor`(ARGB?) | Console Light 값 | 밝기·색 변경 | `AMBIENT_DIM`, `AMBIENT_WARM` 상수 조정, 색이 enum 인덱스면 매핑 추가 | |
+| 8 | **앰비언트 값 범위** `checkAmbientLightBrightnessCapabilities`의 min/max 실측(0~100? 0~10?) / `setAmbientLightBrightnessColor`(ARGB?) | Console Light 값, logcat `ambientRange` | 밝기·색 변경, 어둡게=min+10%·선라이즈 목표=min+70%가 범위 안에서 동작 | 범위 비율(`AMBIENT_DIM_PCT`, `Sunrise.DEFAULT_TO_PCT`) 재조정, 색이 enum 인덱스면 매핑 추가 **[v0.7 검수 I2]** | |
 | 9 | 실내등 `setCabinLightSwitch(OFF)` / `registerCabinLightState` | Console Light > 실내등 | OFF 반영, Done 카드 "실내등이 켜져 있어요" | — | |
 | 10 | HVAC `setHvacTemperature(22, CELSIUS)` / `setHvacFanSpeed(1)` / `setHvacRecirculation(false)` | Console HVAC | 온도 22, 풍량 1 | 풍량 최소값이 1이 아니면 `REST_FAN` 조정 | |
 | 11 | 창문 `registerWindowPosition` (0=닫힘 가정) | Console Window 조수석 30% | Done 카드 "조수석 창문이 열려 있어요" | 값 방향이 반대면 `openWindows` 판정 부호 수정 | |

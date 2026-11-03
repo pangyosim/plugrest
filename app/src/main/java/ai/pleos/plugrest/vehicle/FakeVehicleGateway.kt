@@ -71,7 +71,7 @@ class FakeVehicleGateway(
     }
 
     override suspend fun applyRest(seatMode: SeatMode, halfRecline: Boolean) {
-        setAmbientBrightness(PleosVehicleGateway.AMBIENT_DIM)
+        setAmbientBrightness(ambientLevel(PleosVehicleGateway.AMBIENT_DIM_PCT))
         set("Light.setAmbientLightBrightnessColor(ROW_1_LEFT, warm)")
         set("Light.setCabinLightSwitch(OFF)")
         set("HVAC.setHvacTemperature(ROW_1_LEFT, ${PleosVehicleGateway.REST_TEMP_C}, CELSIUS)")
@@ -98,6 +98,8 @@ class FakeVehicleGateway(
         if (ms <= 0) return
         moveSeat("FORWARD", ms)
     }
+
+    override fun ambientLevel(pct: Int): Int = ambientFromPct(pct, ambientRange)
 
     override suspend fun setAmbientBrightness(value: Int) {
         val v = clampTo(value, ambientRange)

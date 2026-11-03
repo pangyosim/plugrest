@@ -6,7 +6,7 @@ import kotlinx.coroutines.delay
 /** 선라이즈 기상 (PRD §4.8): 앰비언트 밝기를 from→to로 durationMs 동안 선형 상승(10초 간격), 풍량 1→2. 순수 Kotlin. */
 object Sunrise {
     const val STEP_MS = 30_000L      // 실차 30초 간격 (R4). 데모: 10초
-    const val DEFAULT_TO = 70   // 스냅샷에 복원 전 밝기가 없을 때
+    const val DEFAULT_TO_PCT = 70   // 스냅샷에 복원 전 밝기가 없을 때: 범위 최소 + 70%
     const val FAN = 2
 
     /** 단계별 목표 밝기(마지막 = to, 단계 수 = durationMs/stepMs). to ≤ from(스냅샷 밝기 0/OFF 등)이면 빈 목록 → 조명 램프 생략 (검수 R4). */

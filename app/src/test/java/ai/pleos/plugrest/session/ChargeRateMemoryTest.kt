@@ -40,5 +40,9 @@ class ChargeRateMemoryTest {
         assertEquals(20, m.estimateMinutes(75, 90))
         assertEquals(1, m.rates.value.above80.n)
         assertEquals(0, m.estimateMinutes(90, 90))
+        // 출발 시 예상 SOC: 80%까지 1.0, 초과는 0.8(실측 버킷) → 70 + 10분 → 80, 나머지 20분×0.8=16 → 96 → 95 (I5 테이퍼)
+        assertEquals(95, m.predictSoc(70, 30))
+        assertEquals(90, predictSoc(70, 30, 1.0, 0.5)) // 테이퍼 ×0.5면 80+10=90 (무시하면 100)
+        assertEquals(75, predictSoc(70, 4, 1.0, 0.5))  // 74 → 75
     }
 }
