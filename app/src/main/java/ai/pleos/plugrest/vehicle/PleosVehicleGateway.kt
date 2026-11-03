@@ -138,7 +138,7 @@ class PleosVehicleGateway(context: Context) : VehicleGateway {
             rearSeats.forEach { s ->
                 val v = get<Boolean>(Feature.OCCUPANCY) { ok, err -> seat.getCurrentSeatOccupancy(SeatArea(s), ok, err) }
                 android.util.Log.i("PlugRest", "occupancy get $s = $v")
-                v?.let { rearOccupied[s] = it }
+                v?.let { rearOccupied[s] = it.toOccupied() }
             }
             _state.update { it.copy(rearSeatOccupied = rearOccupancy()) }
         }
@@ -192,7 +192,7 @@ class PleosVehicleGateway(context: Context) : VehicleGateway {
             val l = object : SeatOccupancyListener {
                 override fun onSeatOccupancyUpdated(value: Boolean?) {
                     android.util.Log.i("PlugRest", "occupancy update $s = $value")
-                    rearOccupied[s] = value == true
+                    rearOccupied[s] = value?.toOccupied() == true
                     _state.update { it.copy(rearSeatOccupied = rearOccupancy()) }
                 }
                 override fun onFailed(e: Exception) = fail(Feature.OCCUPANCY, e)
@@ -336,6 +336,10 @@ class PleosVehicleGateway(context: Context) : VehicleGateway {
     }
 
     /** 운전석 뒤(ROW_2_LEFT)를 못 읽었으면 null → 호출자가 보수적으로(절반 리클라인) 처리 */
+    // ponytail: Pleos 에뮬레이터(Vehicle SDK 2.3.2) 실측 — SEAT_OCCUPANCY 원시값 1(VACANT)→Boolean true, 2(OCCUPIED)→false로 내려옴.
+    // 즉 SDK Boolean은 "비어 있음"이라 뒤집어서 '착좌'로 해석한다. 실차에서 다르면 이 상수만 바꾼다. (docs/research/06 §3차)
+    private fun Boolean.toOccupied(): Boolean = if (OCCUPANCY_TRUE_MEANS_VACANT) !this else this
+
     private fun rearOccupancy(): Boolean? =
         if (SeatValue.ROW_2_LEFT !in rearOccupied) null else rearOccupied.values.any { it }
 
@@ -355,6 +359,7 @@ class PleosVehicleGateway(context: Context) : VehicleGateway {
         const val AMBIENT_WARM = 0xFFFFB36B.toInt() // ARGB 따뜻한 주황
         const val REST_TEMP_C = 22f
         const val REST_FAN = 1
+        const val OCCUPANCY_TRUE_MEANS_VACANT = true
         const val SEAT_LEVEL = 2
         const val RECLINE_MS = 3_000L
         private val SKIP_CODES = setOf(
