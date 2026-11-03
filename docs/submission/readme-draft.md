@@ -4,7 +4,7 @@
 
 > 전기차 충전을 시작하면 원탭으로 시트·조명·공조를 휴식 공간으로 바꾸고, SOC를 남은 분으로 보여 주며, 목표 충전량에 이르면 음성으로 깨워 원래 상태로 되돌려 주는 Pleos Connect 충전 대기 앱.
 
-- 팀: {팀명}
+- 팀: 충전쉼표
 - 저장소: https://github.com/pangyosim/plugrest
 - 출품: 2026 현대자동차그룹 차량용 앱 개발 공모전
 
@@ -30,7 +30,7 @@
 1. 아래 [테스트 환경](#테스트-환경--필요-설정)대로 Pleos 에뮬레이터를 실행합니다.
 2. APK를 설치합니다.
    ```bash
-   adb install -r apk/TEAM_PlugRest_release.apk
+   adb install -r apk/충전쉼표_PlugRest_release.apk
    ```
 3. 에뮬레이터 앱 목록에서 **충전쉼표**를 실행합니다.
 
@@ -112,7 +112,7 @@ cd plugrest/app                    # app/ 폴더가 Gradle 루트(단일 모듈)
 - 개인정보·위치 데이터는 수집하지 않습니다. 앱 자체는 외부로 데이터를 보내지 않습니다. 음성 안내 SDK가 서비스 검증 통신을 할 수 있으나, 앱은 차량·개인정보를 넘기지 않습니다.
 
 ## APK 위치
-- 저장소 내 `apk/` 폴더: [`apk/TEAM_PlugRest_release.apk`](apk/TEAM_PlugRest_release.apk) (약 38MB)
+- 저장소 내 `apk/` 폴더: [`apk/충전쉼표_PlugRest_release.apk`](apk/충전쉼표_PlugRest_release.apk) (약 38MB)
 
 ## 프로젝트 구조 (요약)
 - 단일 Activity + Jetpack Compose. 화면은 대기 / 휴식 / 완료 3개입니다.
@@ -122,8 +122,8 @@ cd plugrest/app                    # app/ 폴더가 Gradle 루트(단일 모듈)
 ---
 
 ## 제출 전 확인 (README 이전 시 삭제)
-- [ ] 팀명 확정 시 `{팀명}`과 APK 파일명의 `TEAM_` 접두 교체
-- [ ] 빌드 산출물 `PlugRest-release.apk`를 `apk/TEAM_PlugRest_release.apk`로 복사
+- [x] 팀명 확정(충전쉼표) — `{팀명}`·APK 파일명 교체 완료
+- [x] 빌드 산출물 `PlugRest-release.apk`를 `apk/충전쉼표_PlugRest_release.apk`로 복사
 - [ ] CONTROL_* 권한이 normal 레벨인지 확인(앱 마켓 사전 승인 대상일 수 있음)
 - [ ] Gear 도메인 에뮬레이터 실측 결과(안 되면 시연 1번 기대 화면 수정)
 - [ ] 에뮬레이터에서 Seat/Light 반영이 안 되면 시연 3·5번 "Console 확인" 문구 조정

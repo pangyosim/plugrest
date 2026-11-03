@@ -1,5 +1,5 @@
 """proposal.md(1~5) + section6.md(6) -> 접수양식 02 섹션 채우기. 실행: /usr/bin/python3 docs/submission/build_docx.py docs  (python-docx 필요, 홈브루 3.14는 pip 깨짐 → /usr/bin/python3 사용)
-01·02·04의 앱명 칸을 채우고, 01 팀명·개인정보·03·04 서명은 비운다."""
+01·02·04의 앱명 칸, 01·04 팀명과 01 참가 부문(일반)을 채우고, 참가 단위·개인정보·03·04 서명은 비운다."""
 import re, shutil, sys
 import docx
 from docx.table import Table
@@ -10,6 +10,7 @@ D = sys.argv[1]
 SRC = f"{D}/contest-application-consent.docx"
 OUT = f"{D}/submission/접수양식_충전쉼표_draft.docx"
 APP = "충전쉼표 (Plug & Rest)"
+TEAM = "충전쉼표"
 
 def sections(md_text):
     """'## N. 제목' 단위로 본문 분리."""
@@ -83,7 +84,7 @@ body = {**{k: v for k, v in doc_proposal.items() if k <= 5}, 6: doc_s6[6]}
 
 EXCLUDE = {"14", "17"}  # PM 결정: 펫 모드·GS25 기사 → 결번으로 제외(재번호 안 함)
 refs = [r for r in re.findall(r"^\d+\. .*", open(f"{D}/submission/section6.md").read().split("## 7번")[1], re.M) if r.split(".")[0] not in EXCLUDE]
-body[7] = ["- 시연 영상: 첨부 파일 demo_fake_v1.mp4 (76초, Fake 차량 모드·시간 단축 데모)", "- GitHub 저장소(APK 포함): https://github.com/pangyosim/plugrest (APK: apk/TEAM_PlugRest_release.apk)", "- 앱 화면 시안: 첨부 파일 화면시안_충전쉼표.pdf (표지 + 화면 6장)", "", "**출처 목록** (본문의 [n] 번호와 연동)"] + refs
+body[7] = ["- 시연 영상: 첨부 파일 demo_fake_v1.mp4 (76초, Fake 차량 모드·시간 단축 데모)", "- GitHub 저장소(APK 포함): https://github.com/pangyosim/plugrest (APK: apk/충전쉼표_PlugRest_release.apk)", "- 앱 화면 시안: 첨부 파일 화면시안_충전쉼표.pdf (표지 + 화면 6장)", "", "**출처 목록** (본문의 [n] 번호와 연동)"] + refs
 body[8] = ["{숏폼 링크}"]
 
 shutil.copy(SRC, OUT)
@@ -96,6 +97,12 @@ for idx, el in enumerate(els):
         if p.text.strip().startswith("앱명 / 프로젝트명:"):
             lead = p.text[: len(p.text) - len(p.text.lstrip())]
             p.text = f"{lead}앱명 / 프로젝트명: {APP}"; filled.add(f"앱명@{idx}")
+        if p.text.startswith("참가 부문:"):
+            p.runs[-2].text = " ■ "; filled.add("부문")  # ponytail: 원본 run 분할에 의존 (-2 = 일반 앞 □)
+        if p.text.startswith("팀명("):
+            label = p.text.split(":")[0]
+            for r in p.runs[1:]: r.text = ""
+            p.runs[0].text = f"{label}: {TEAM}"; filled.add(f"팀명@{idx}")
         m = re.match(r"^(\d)\. ", p.text)
         if m and int(m.group(1)) in body and idx + 1 < len(els) and els[idx + 1].tag.endswith("}tbl"):
             n = int(m.group(1))
