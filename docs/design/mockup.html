@@ -14,6 +14,7 @@
   --primary:#0064FF; --onPrimary:#FFFFFF; --charge:#43E0A0; --warn:#FFC75A;
   --restText:#B4B5B8; --restTextDim:#7A7B80; --restCharge:#2B8F67; --track:#26272B;
   --disabledBg:#2A2B2F; --disabledText:#6B6C70;
+  --segTrack:#131417; --bgSunrise:#241C14;
   --pad:48px; --gap:24px; --section:48px;
 }
 *{box-sizing:border-box;margin:0;padding:0}
@@ -29,6 +30,7 @@ header label{margin-left:12px}
 
 .frame{width:800px;height:1200px;background:var(--bg);border-radius:24px;padding:var(--pad);display:flex;flex-direction:column;overflow:hidden;font-variant-numeric:tabular-nums}
 .frame.rest{background:var(--bgRest)}
+.frame.sunrise{background:var(--bgSunrise)}
 
 /* type */
 .displayXL{font-size:160px;line-height:168px;font-weight:800}
@@ -52,6 +54,9 @@ header label{margin-left:12px}
 .chips{display:flex;gap:var(--gap)}
 .chip{flex:1;height:80px;border-radius:24px;background:var(--surface);color:var(--textSecondary);display:flex;align-items:center;justify-content:center;font-size:32px;font-weight:700}
 .chip.on{color:var(--textPrimary);box-shadow:inset 0 0 0 4px var(--primary)}
+.seg{display:flex;height:64px;padding:4px;border-radius:16px;background:var(--segTrack)}
+.seg div{flex:1;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:700;color:var(--textSecondary)}
+.seg .on{background:var(--surface);color:var(--textPrimary)}
 .chip.off{background:var(--disabledBg);color:var(--disabledText)}
 .card{background:var(--surface);border-radius:24px;padding:32px;display:flex;flex-direction:column;gap:24px}
 .row{display:flex;align-items:center;gap:20px}
@@ -67,7 +72,7 @@ header label{margin-left:12px}
 </head>
 <body>
 <header>
-  <h1>충전쉼표 (Plug &amp; Rest) — 화면 목업 v0.1</h1>
+  <h1>충전쉼표 (Plug &amp; Rest) — 화면 목업 v0.7</h1>
   Portrait 800×1200dp · 다크 고정 · 애니메이션 없음 · 토큰은 docs/design/tokens.md
   <label>배율 <select id="z">
     <option value="0.5">50%</option><option value="0.75">75%</option><option value="1">100% (1px = 1dp)</option>
@@ -332,6 +337,93 @@ header label{margin-left:12px}
       <div class="spacer"></div>
       <div class="bodyS center" style="color:var(--restTextDim);margin-bottom:var(--gap)">
         시트 · 공조 22°C 적용 중<br>앰비언트 조명 · 이 차량 미지원
+      </div>
+      <button class="btnL rest">종료</button>
+    </div>
+  </section>
+
+
+  <!-- v0.7 출발 시각 모드 (PRD §4.7) · 선라이즈 (§4.8) -->
+  <section class="col">
+    <p><b>⑩ Idle · 출발 시각</b> — 세그먼트로 모드 선택, 칩 3개. 주 버튼 1개 유지</p>
+    <div class="frame">
+      <div class="status labelM">
+        <svg viewBox="0 0 24 24"><path d="M13 2 5 14h6l-2 8 10-13h-6l2-7z" fill="var(--charge)"/></svg>
+        <span>P · 충전 중</span>
+      </div>
+      <div style="margin-top:96px">
+        <div class="labelM sec">현재 배터리</div>
+        <div class="displayL">50%</div>
+      </div>
+      <div style="margin-top:var(--section)">
+        <div class="labelM sec" style="margin-bottom:var(--gap)">언제 깨워 드릴까요</div>
+        <div class="seg"><div>배터리 목표</div><div class="on">출발 시각</div></div>
+        <div class="chips" style="margin-top:var(--gap)"><div class="chip">15분 후</div><div class="chip on">30분 후</div><div class="chip">45분 후</div></div>
+        <!-- 학습값 있음: textSecondary. 없으면 "출발 시 배터리는 충전 속도를 확인한 뒤 알려 드려요"(textTertiary) -->
+        <div class="bodyS sec" style="margin-top:var(--gap)">지난 충전 기준, 출발 시 약 85%</div>
+        <button class="textBtn labelS">학습 기록 지우기</button>
+      </div>
+      <div style="margin-top:var(--gap)">
+        <div class="labelM sec" style="margin-bottom:var(--gap)">시트 통풍</div>
+        <div class="chips"><div class="chip on">끔</div><div class="chip">켬</div></div>
+      </div>
+      <div class="spacer"></div>
+      <button class="btnL primary">휴식 모드 시작</button>
+    </div>
+  </section>
+
+  <section class="col">
+    <p><b>⑪ Resting · 출발 모드</b> — 큰 숫자는 출발까지 남은 분(정확한 값이라 "약" 없음). 링은 SOC</p>
+    <div class="frame rest">
+      <div class="labelM" style="color:var(--restTextDim)">휴식 중 · 출발 30분 후</div>
+      <div class="ring" style="margin-top:56px">
+        <!-- 링 = SOC. 출발 모드는 목표 SOC가 없어 눈금 없음 -->
+        <svg viewBox="0 0 520 520">
+          <circle cx="260" cy="260" r="246" fill="none" stroke="var(--track)" stroke-width="28"/>
+          <circle cx="260" cy="260" r="246" fill="none" stroke="var(--restCharge)" stroke-width="28"
+                  stroke-dasharray="958.3 1545.6" transform="rotate(-90 260 260)" stroke-linecap="butt"/>
+        </svg>
+        <div class="in">
+          <div class="labelM" style="color:var(--restTextDim)">출발까지</div>
+          <div class="displayXL" style="color:var(--restText)">18분</div>
+        </div>
+      </div>
+      <div class="center" style="margin-top:var(--section)">
+        <div class="labelM" style="color:var(--restTextDim)">배터리 62%</div>
+        <!-- 추정 전: "출발 시 배터리 · 계산 중…"(restTextDim). 120dp 자리 유지 -->
+        <div class="titleL" style="color:var(--restText);height:120px;display:flex;align-items:center;justify-content:center">출발 시 약 85%</div>
+      </div>
+      <div class="spacer"></div>
+      <div class="bodyS center" style="color:var(--restTextDim);margin-bottom:var(--gap)">
+        등받이 리클라인<br>앰비언트 어둡게 · 실내등 끔<br>공조 22°C · 풍량 1단
+      </div>
+      <button class="btnL rest">종료</button>
+    </div>
+  </section>
+
+  <section class="col">
+    <p><b>⑫ Resting · 선라이즈</b> — 종료 3분 전. 배경 bgSunrise로 1번 바뀜(애니메이션 없음), 글자는 전부 restText</p>
+    <div class="frame sunrise">
+      <div class="labelM" style="color:var(--restText)">휴식 중 · 출발 30분 후</div>
+      <div class="ring" style="margin-top:56px">
+        <!-- 링 = SOC. 출발 모드는 목표 SOC가 없어 눈금 없음 -->
+        <svg viewBox="0 0 520 520">
+          <circle cx="260" cy="260" r="246" fill="none" stroke="var(--track)" stroke-width="28"/>
+          <circle cx="260" cy="260" r="246" fill="none" stroke="var(--restCharge)" stroke-width="28"
+                  stroke-dasharray="1205.6 1545.6" transform="rotate(-90 260 260)" stroke-linecap="butt"/>
+        </svg>
+        <div class="in">
+          <div class="labelM" style="color:var(--restText)">출발까지</div>
+          <div class="displayXL" style="color:var(--restText)">2분</div>
+        </div>
+      </div>
+      <div class="center" style="margin-top:var(--section)">
+        <div class="labelM" style="color:var(--restText)">배터리 78%</div>
+        <div class="titleL" style="color:var(--restText);height:120px;display:flex;align-items:center;justify-content:center">출발 시 약 85%</div>
+      </div>
+      <div class="spacer"></div>
+      <div class="bodyS center" style="color:var(--restText);margin-bottom:var(--gap)">
+        <b style="font-weight:700">곧 깨워 드릴게요 · 조명을 천천히 밝히는 중</b><br>등받이 리클라인<br>공조 22°C · 풍량 2단
       </div>
       <button class="btnL rest">종료</button>
     </div>
