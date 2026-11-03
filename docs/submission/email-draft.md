@@ -27,7 +27,7 @@
 [첨부]
 1. 접수양식(01 참가신청서 / 02 앱 소개 / 03 개인정보 동의 / 04 동의 확인 및 서명) — 접수양식_충전쉼표_draft.docx
 2. {선택} 앱 소개 시안 — 화면시안_충전쉼표.pdf
-3. 시연 영상 — demo_fake_v1.mp4 (76초, 약 1.5MB, Fake 차량 모드·시간 단축 데모)
+3. 시연 영상 — demo_fake_v1.mp4 (76초, 약 1.6MB, Fake 차량 모드·시간 단축 데모)
 
 [선택 제출물 링크]
 - GitHub: https://github.com/plugrest/plugrest
