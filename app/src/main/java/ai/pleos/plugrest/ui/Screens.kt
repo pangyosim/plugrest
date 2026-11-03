@@ -17,6 +17,8 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -105,10 +107,23 @@ fun Segmented(options: List<String>, selected: Int, onSelect: (Int) -> Unit, mod
     }
 }
 
+// ponytail: Pleos 앱 영역은 landscape 2-window(약 1900dp)까지 넓어짐. 넓으면 hero(상태)|content(조작) 두 열, 좁으면 한 열.
+// 세로 고정(screenOrientation=portrait)은 Pleos 멀티윈도우에서 검은 레터박스를 만들어 제거함(기획 가이드 "app-structure-screen-model").
 @Composable
-fun Screen(bg: Color, modifier: Modifier = Modifier, content: @Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit) {
-    Column(modifier.fillMaxSize().background(bg).padding(D.screenPad), content = content)
+fun Screen(
+    bg: Color, modifier: Modifier = Modifier,
+    hero: (@Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit)? = null,
+    content: @Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit,
+) {
+    BoxWithConstraints(modifier.fillMaxSize().background(bg)) {
+        if (hero != null && maxWidth >= WIDE_MIN) Row(Modifier.fillMaxSize().padding(D.screenPad)) {
+            Column(Modifier.weight(0.42f).fillMaxHeight(), verticalArrangement = Arrangement.Center, content = hero)
+            Spacer(Modifier.width(D.section))
+            Column(Modifier.weight(0.58f).fillMaxHeight(), content = content)
+        } else Column(Modifier.fillMaxSize().padding(D.screenPad)) { hero?.invoke(this); content() }
+    }
 }
+private val WIDE_MIN = 1100.dp
 
 @Composable
 fun SocRing(soc: Int, target: Int?, ring: Color, text: Color, modifier: Modifier = Modifier, center: (@Composable (Dp) -> Unit)? = null) {
@@ -158,7 +173,7 @@ fun IdleScreen(s: VehicleState, blockReason: String?, rates: ChargeRateMemory, o
     val learned by rates.rates.collectAsState()
     val eta = s.soc?.let { rates.estimateMinutes(it, target) }?.takeIf { it > 0 }
     val departSoc = s.soc?.let { rates.predictSoc(it, departMin) } // 학습값만, 가정 금지
-    Screen(C.bg) {
+    Screen(C.bg, hero = {
         Text("충전쉼표", style = T.titleL, color = C.textPrimary)
         Spacer(Modifier.height(D.section))
         Text(s.soc?.let { "$it%" } ?: "--", style = T.displayL, color = C.textPrimary)
@@ -170,6 +185,7 @@ fun IdleScreen(s: VehicleState, blockReason: String?, rates: ChargeRateMemory, o
             } + DEMO_TAG, style = T.bodyL, color = C.textSecondary,
         )
         Spacer(Modifier.height(D.section))
+    }) {
         Text("언제 깨워 드릴까요", style = T.labelM, color = C.textTertiary)
         Spacer(Modifier.height(D.gap / 2))
         Segmented(listOf("배터리 목표", "출발 시각"), if (departure) 1 else 0, { departure = it == 1 })
@@ -205,7 +221,7 @@ fun IdleScreen(s: VehicleState, blockReason: String?, rates: ChargeRateMemory, o
 fun RestingScreen(p: Phase.Resting, s: VehicleState, remaining: Int?, learned: Int?, departMinutes: Int?, predictSoc: (Int) -> Int?, onStop: () -> Unit, onTouch: () -> Unit) {
     // 디자인 ⑫: 선라이즈는 배경 1회 교체 + 글자 전부 restText(restTextDim 대비 부족)
     val dim = if (p.sunrise) C.restText else C.restTextDim
-    Screen(if (p.sunrise) C.bgSunrise else C.bgRest, Modifier.pointerInput(Unit) { detectTapGestures { onTouch() } }) {
+    Screen(if (p.sunrise) C.bgSunrise else C.bgRest, Modifier.pointerInput(Unit) { detectTapGestures { onTouch() } }, hero = {
         Text((if (departMinutes != null) "휴식 중 · 출발 시각 모드" else "휴식 중 · 목표 ${p.target}%") + DEMO_TAG, style = T.labelM, color = dim)
         Spacer(Modifier.height(D.gap))
         if (departMinutes != null) { // 디자인 ⑪: 출발 모드 — 링 안 "출발까지 N분", 아래 배터리·출발 시 예상
@@ -239,6 +255,8 @@ fun RestingScreen(p: Phase.Resting, s: VehicleState, remaining: Int?, learned: I
             if (remaining == null && learnedEta != null) Text("지난 충전 기준 약 ${learnedEta}분", style = T.bodyS, color = dim, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
         }
         Spacer(Modifier.height(D.gap))
+    }) {
+        Spacer(Modifier.weight(1f))
         // 디자인 ⑫ M1: 선라이즈 문구는 하단 상태줄 첫 줄(헤더의 데모 고지는 유지)
         if (p.sunrise) Text(if (Feature.AMBIENT in s.unsupported) "곧 깨워 드릴게요" else "곧 깨워 드릴게요 · 조명을 천천히 밝히는 중", style = T.bodyS.copy(fontWeight = FontWeight.Bold), color = C.restText, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
         if (p.halfRecline) Text("뒷좌석에 사람이 있어 등받이를 절반만 젖혔어요", style = T.bodyS, color = dim, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
