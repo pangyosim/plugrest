@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -121,27 +122,23 @@ fun Screen(
 ) {
     BoxWithConstraints(modifier.fillMaxSize().background(bg)) {
         val wide = hero != null && maxWidth >= WIDE_MIN
-        if (wide) Row(Modifier.fillMaxSize().padding(horizontal = D.screenPad * 1.5f, vertical = D.screenPad)) {
-            // 왼쪽: 상태(hero) 세로 중앙. 오른쪽: 조작 묶음 + 버튼을 세로 중앙에 모아 빈 공간 제거(가로 전용 리듬)
-            Column(Modifier.weight(0.44f).fillMaxHeight(), verticalArrangement = Arrangement.Center, content = hero!!)
-            Spacer(Modifier.width(D.screenPad))
-            Box(Modifier.width(2.dp).fillMaxHeight(0.6f).align(Alignment.CenterVertically).background(C.surface))
-            Spacer(Modifier.width(D.screenPad * 1.5f))
-            Column(Modifier.weight(0.56f).fillMaxHeight(), verticalArrangement = Arrangement.Center) { content(true) }
+        if (wide) Box(Modifier.fillMaxSize().padding(horizontal = D.screenPad, vertical = D.gap), contentAlignment = Alignment.Center) {
+            // 1열: 폭만 제한하고 높이는 꽉 채워 상단 헤더 / 가운데 본문 / 하단 버튼 골격을 유지
+            Column(Modifier.widthIn(max = 1040.dp).fillMaxWidth().fillMaxHeight(), horizontalAlignment = Alignment.CenterHorizontally) { hero!!(); content(true) }
         } else Column(Modifier.fillMaxSize().padding(D.screenPad)) { hero?.invoke(this); content(false) }
     }
 }
 private val WIDE_MIN = 1100.dp
 
 @Composable
-fun SocRing(soc: Int, target: Int?, ring: Color, text: Color, modifier: Modifier = Modifier, goal: Int? = null, center: (@Composable (Dp) -> Unit)? = null) {
+fun SocRing(soc: Int, target: Int?, ring: Color, text: Color, modifier: Modifier = Modifier, goal: Int? = null, maxDp: Float = 520f, center: (@Composable (Dp) -> Unit)? = null) {
     val fill by androidx.compose.animation.core.animateFloatAsState(soc.toFloat(), androidx.compose.animation.core.tween(900), label = "socFill")
     // 화면 전체 기준 min(폭×0.65, 높이×0.45), 최대 520dp (tokens.md)
     val cfg = LocalConfiguration.current
     BoxWithConstraints(modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
         // 남은 높이(Fake 패널 열림 등)보다 커지지 않게
         // 폭에도 맞춘다: 열 폭보다 큰 지름은 가로만 눌려 타원이 됨(에뮬레이터 실측 446×519px)
-        val d = min(min(min(min(cfg.screenWidthDp * 0.65f, cfg.screenHeightDp * 0.45f), 520f), maxHeight.value), maxWidth.value).dp
+        val d = min(min(min(min(cfg.screenWidthDp * 0.65f, cfg.screenHeightDp * 0.45f), maxDp), maxHeight.value), maxWidth.value).dp
         Box(Modifier.size(d).aspectRatio(1f), contentAlignment = Alignment.Center) {
             Canvas(Modifier.fillMaxSize()) {
                 val stroke = D.ringStroke.toPx()
@@ -204,43 +201,29 @@ fun IdleScreen(s: VehicleState, blockReason: String?, rates: ChargeRateMemory, o
         add(Badge(CabinIcon.GEAR, "기어 ${s.gear?.label() ?: "-"}", tint = if (s.gear == Gear.PARK) C.textSecondary else C.warn))
         if (BuildConfig.DEMO) add(Badge(CabinIcon.CLOCK, "시간 단축 데모", tint = C.warn.copy(alpha = 0.8f)))
     }
-    Screen(C.bg, hero = {
-        Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                androidx.compose.foundation.Image(androidx.compose.ui.res.painterResource(R.mipmap.ic_launcher_foreground), contentDescription = null, modifier = Modifier.size(72.dp).clip(RoundedCornerShape(20.dp)))
-                Text("충전쉼표", style = T.titleL, color = C.textPrimary)
-            }
-            Spacer(Modifier.height(D.section))
-            SocRing(s.soc ?: 0, null, if (charging) C.charge else C.surface, C.textPrimary, Modifier.fillMaxWidth(0.72f), goal = if (!departure && step >= 2 && charging) target else null)
-            Spacer(Modifier.height(D.section))
-            BadgeRow(statusBadges, active = C.textSecondary, muted = C.textTertiary, bg = C.surface)
-        }
-    }) { wide ->
-        if (!wide) {
-            Text(s.soc?.let { "$it%" } ?: "--", style = T.displayL, color = C.textPrimary)
-            Spacer(Modifier.height(D.gap / 2))
-            BadgeRow(statusBadges, active = C.textSecondary, muted = C.textTertiary, bg = C.surface, start = true)
-            Spacer(Modifier.height(D.section))
-        }
+    Screen(C.bg, hero = { HeaderRow(statusBadges) }) { wide ->
+        Spacer(Modifier.weight(if (step == 0) 1f else 0.4f))
+        SocRing(s.soc ?: 0, null, if (charging) C.charge else C.surface, C.textPrimary, Modifier.fillMaxWidth(0.6f), goal = if (!departure && step >= 2 && charging) target else null, maxDp = if (step == 0) 380f else 260f)
+        Spacer(Modifier.height(D.section))
         when (step) {
             0 -> {
-                Text("충전하는 동안\n편히 쉬어 가세요", style = T.headlineL, color = C.textPrimary)
+                Text("충전하는 동안\n쉬어 가세요", style = T.headlineL, color = C.textPrimary, textAlign = TextAlign.Center)
                 Spacer(Modifier.height(D.gap))
-                Text("목표 배터리나 출발 시각에 맞춰 시트·조명·공조를 휴식용으로 바꾸고, 시간이 되면 조명을 천천히 밝히며 깨워 드려요.", style = T.bodyL, color = C.textSecondary)
-                if (wide) Spacer(Modifier.height(D.section * 1.5f)) else Spacer(Modifier.weight(1f))
-                BigButton("휴식 타이머 설정", { step = 1 }, enabled = charging)
+                Text("다 되면 깨워 드려요", style = T.bodyL, color = C.textSecondary, textAlign = TextAlign.Center)
+                Spacer(Modifier.weight(1f))
+                BigButton("휴식 설정", { step = 1 }, enabled = charging)
                 Spacer(Modifier.height(D.gap / 2))
-                Text(blockReason ?: "충전 중이에요 · 바로 설정할 수 있어요", style = T.bodyS, color = C.textTertiary, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
+                if (blockReason != null) Text(blockReason, style = T.bodyS, color = C.textTertiary, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
             }
             1 -> {
-                StepHeader(1, "어떤 모드로 휴식하실 건가요?")
-                OptionCard(CabinIcon.TARGET, "목표 배터리", "원하는 배터리에 도달하면 깨워 드려요", !departure) { departure = false }
+                StepHeader(1, "언제 깨워 드릴까요?")
+                OptionCard(CabinIcon.TARGET, "목표 배터리", "배터리가 차면", !departure) { departure = false }
                 Spacer(Modifier.height(D.gap))
-                OptionCard(CabinIcon.CLOCK, "출발 시각", "정해 둔 시각에 맞춰 깨워 드려요", departure) { departure = true }
+                OptionCard(CabinIcon.CLOCK, "출발 시각", "정한 시각에", departure) { departure = true }
                 StepNav(wide, onBack = { step = 0 }, next = "다음", onNext = { step = 2 })
             }
             2 -> {
-                StepHeader(2, if (departure) "언제 출발하시나요?" else "목표 배터리를 골라 주세요")
+                StepHeader(2, if (departure) "언제 출발하세요?" else "얼마나 충전할까요?")
                 if (departure) {
                     val cal = java.util.Calendar.getInstance().apply { timeInMillis = departAt }
                     val hour = cal.get(java.util.Calendar.HOUR_OF_DAY); val minute5 = cal.get(java.util.Calendar.MINUTE) / 5
@@ -263,13 +246,12 @@ fun IdleScreen(s: VehicleState, blockReason: String?, rates: ChargeRateMemory, o
                         }
                     }
                     Spacer(Modifier.height(D.gap))
-                    Text(if (departInvalid) "현재 시각 이후로 선택해 주세요" else (if (departSoc != null) "지난 충전 기준, 출발 시 약 $departSoc%" else "출발 시 배터리는 충전 속도를 확인한 뒤 알려 드려요") + " · ${departMin}분 뒤",
-                        style = T.bodyS, color = if (departInvalid) C.warn else C.textSecondary)
+                    Text(if (departInvalid) "지난 시각이에요" else "${departMin}분 뒤" + (if (departSoc != null) " · 출발 시 약 $departSoc%" else ""), style = T.bodyS, color = if (departInvalid) C.warn else C.textSecondary)
                 } else {
-                    if (targets.isEmpty()) Text("배터리가 이미 목표 이상이에요 · 출발 시각 모드를 써 보세요", style = T.bodyL, color = C.textSecondary)
+                    if (targets.isEmpty()) Text("이미 충분해요 · 출발 시각으로 해 보세요", style = T.bodyL, color = C.textSecondary)
                     else RadioRow(targets.map { "$it%" }, targets.indexOf(target), { target = targets[it] })
                     Spacer(Modifier.height(D.gap))
-                    if (targets.isNotEmpty()) Text(if (eta != null) "지난 충전 ${learned.count}회 기준, $target%까지 보통 약 ${eta}분" else "시작 후 실제 충전 속도로 남은 시간을 계산해요", style = T.bodyS, color = C.textSecondary)
+                    if (targets.isNotEmpty() && eta != null) Text("지난 충전 기준 약 ${eta}분", style = T.bodyS, color = C.textSecondary)
                     if (learned.count > 0) Box(Modifier.height(56.dp).clickable { rates.clear() }, contentAlignment = Alignment.CenterStart) {
                         Text("학습 기록 지우기", style = T.labelS.copy(textDecoration = TextDecoration.Underline), color = C.textTertiary)
                     }
@@ -277,7 +259,7 @@ fun IdleScreen(s: VehicleState, blockReason: String?, rates: ChargeRateMemory, o
                 StepNav(wide, onBack = { step = 1 }, next = "다음", onNext = { step = 3 }, nextEnabled = !batteryBlocked && !departInvalid)
             }
             else -> {
-                StepHeader(3, "시트 통풍을 켤까요?")
+                StepHeader(3, "통풍 시트도 켤까요?")
                 Row(horizontalArrangement = Arrangement.spacedBy(D.gap)) {
                     Chip("끔", seat == SeatMode.NONE, { seat = SeatMode.NONE }, Modifier.weight(1f))
                     if (Feature.SEAT_VENT !in s.unsupported) Chip("켬", seat == SeatMode.VENT, { seat = SeatMode.VENT }, Modifier.weight(1f))
@@ -286,11 +268,11 @@ fun IdleScreen(s: VehicleState, blockReason: String?, rates: ChargeRateMemory, o
                 BadgeRow(buildList {
                     add(if (departure) Badge(CabinIcon.CLOCK, "${hhmm(departAt)} 출발", tint = C.textPrimary) else Badge(CabinIcon.TARGET, "목표 $target%", tint = C.textPrimary))
                     add(Badge(CabinIcon.VENT, if (seat == SeatMode.VENT) "통풍 켬" else "통풍 끔"))
-                    add(Badge(CabinIcon.AMBIENT, "조명·공조 휴식용"))
+                    add(Badge(CabinIcon.AMBIENT, "휴식 조명·공조"))
                 }, active = C.textSecondary, muted = C.textTertiary, bg = C.surface, start = true)
                 StepNav(wide, onBack = { step = 2 }, next = "휴식 모드 시작", onNext = { if (departure) onStart(100, seat, departMin) else onStart(target, seat, 0) }, nextEnabled = charging)
                 Spacer(Modifier.height(D.gap / 2))
-                Text(if (departure) "${hhmm(departAt)}에 깨워 드릴게요" else "목표 $target%에 도달하면 깨워 드릴게요", style = T.bodyS, color = C.textTertiary, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
+                Text(if (departure) "${hhmm(departAt)}에 깨워 드려요" else "$target%가 되면 깨워 드려요", style = T.bodyS, color = C.textTertiary, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
             }
         }
     }
@@ -298,15 +280,15 @@ fun IdleScreen(s: VehicleState, blockReason: String?, rates: ChargeRateMemory, o
 
 @Composable
 private fun StepHeader(n: Int, question: String) {
-    Text("$n / 3", style = T.labelM, color = C.textTertiary)
+    Text("$n / 3", style = T.labelM, color = C.textTertiary, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
     Spacer(Modifier.height(D.gap / 2))
-    Text(question, style = T.titleL, color = C.textPrimary)
-    Spacer(Modifier.height(D.section))
+    Text(question, style = T.titleL, color = C.textPrimary, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
+    Spacer(Modifier.height(D.gap)) 
 }
 
 @Composable
 private fun androidx.compose.foundation.layout.ColumnScope.StepNav(wide: Boolean, onBack: () -> Unit, next: String, onNext: () -> Unit, nextEnabled: Boolean = true) {
-    if (wide) Spacer(Modifier.height(D.section * 1.5f)) else Spacer(Modifier.weight(1f))
+    Spacer(Modifier.weight(1f))
     Row(horizontalArrangement = Arrangement.spacedBy(D.gap)) {
         BigButton("이전", onBack, Modifier.weight(0.38f), bg = C.surface)
         BigButton(next, onNext, Modifier.weight(0.62f), enabled = nextEnabled)
@@ -336,30 +318,28 @@ private fun OptionCard(icon: CabinIcon, title: String, desc: String, selected: B
 fun RestingScreen(p: Phase.Resting, s: VehicleState, remaining: Int?, learned: Int?, departMinutes: Int?, predictSoc: (Int) -> Int?, onStop: () -> Unit, onTouch: () -> Unit) {
     // 디자인 ⑫: 선라이즈는 배경 1회 교체 + 글자 전부 restText(restTextDim 대비 부족)
     val dim = if (p.sunrise) C.restText else C.restTextDim
+    val headerBadges = buildList {
+        add(Badge(CabinIcon.MOON, "휴식 중", tint = C.restText))
+        add(Badge(CabinIcon.TARGET, if (departMinutes != null) "출발 시각" else "목표 ${p.target}%", tint = dim))
+        if (BuildConfig.DEMO) add(Badge(CabinIcon.CLOCK, "시간 단축 데모", tint = C.warn.copy(alpha = 0.8f)))
+    }
     Screen(if (p.sunrise) C.bgSunrise else C.bgRest, Modifier.pointerInput(Unit) { detectTapGestures { onTouch() } }, hero = {
-        BadgeRow(buildList {
-            add(Badge(CabinIcon.MOON, "휴식 중"))
-            add(Badge(CabinIcon.TARGET, if (departMinutes != null) "출발 시각 모드" else "목표 ${p.target}%"))
-            if (BuildConfig.DEMO) add(Badge(CabinIcon.CLOCK, "시간 단축 데모"))
-        }, active = dim, muted = dim, bg = if (p.sunrise) C.surfaceRest.copy(alpha = 0.6f) else C.surfaceRest, start = true)
-        Spacer(Modifier.height(D.gap))
-        if (departMinutes != null) { // 디자인 ⑪: 출발 모드 — 링 안 "출발까지 N분", 아래 배터리·출발 시 예상
-            SocRing(s.soc ?: 0, null, C.restCharge, C.restText, Modifier.weight(1f, fill = false)) { d ->
+        HeaderRow(headerBadges, bg = if (p.sunrise) C.surfaceRest.copy(alpha = 0.6f) else C.surfaceRest, active = C.restText, muted = dim, showBrand = false)
+    }) { wide ->
+        Spacer(Modifier.weight(0.6f))
+        if (departMinutes != null) {
+            SocRing(s.soc ?: 0, null, C.restCharge, C.restText, Modifier.fillMaxWidth(0.6f), maxDp = 360f) { d ->
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text("출발까지", style = T.labelM, color = dim)
                     Text("${departMinutes}분", style = T.displayXL.copy(fontSize = (d.value * 0.31f).sp, lineHeight = (d.value * 0.33f).sp), color = C.restText, maxLines = 1, softWrap = false)
                 }
             }
-            Spacer(Modifier.weight(0.01f))
+            Spacer(Modifier.height(D.gap / 2))
             Text("배터리 ${s.soc ?: "--"}%", style = T.labelM, color = dim, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
-        } else {
-            SocRing(s.soc ?: 0, p.target, C.restCharge, C.restText, Modifier.weight(1f, fill = false), goal = p.target)
-            Spacer(Modifier.weight(0.01f))
-        }
-        Spacer(Modifier.height(D.gap))
-    }) { wide ->
+        } else SocRing(s.soc ?: 0, p.target, C.restCharge, C.restText, Modifier.fillMaxWidth(0.6f), goal = p.target, maxDp = 360f)
+        Spacer(Modifier.height(D.section))
         if (departMinutes != null && p.departAt != null) { // 출발 모드: "HH:MM에 깨워 드릴게요" + 줄어드는 남은 시간 바 + 출발 시 예상 배터리
-            Text("${hhmm(p.departAt)}에 깨워 드릴게요", style = T.titleL, color = C.restText, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
+            Text("${hhmm(p.departAt)}에 깨워 드려요", style = T.titleL, color = C.restText, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
             Spacer(Modifier.height(D.gap))
             val total = (p.departAt - p.startedAt).coerceAtLeast(1L)
             val frac by androidx.compose.animation.core.animateFloatAsState(((p.departAt - System.currentTimeMillis()).toFloat() / total).coerceIn(0f, 1f), androidx.compose.animation.core.tween(800), label = "remain")
@@ -369,11 +349,11 @@ fun RestingScreen(p: Phase.Resting, s: VehicleState, remaining: Int?, learned: I
             Spacer(Modifier.height(D.section))
             val predicted = predictSoc(departMinutes)
             Text("출발 시 배터리", style = T.labelM, color = dim, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
-            Box(Modifier.fillMaxWidth().height(if (wide) 180.dp else 120.dp), contentAlignment = Alignment.Center) {
-                if (predicted != null) Text("약 $predicted%", style = if (wide) T.displayXL else T.displayL, color = C.restText, maxLines = 1, softWrap = false)
+            Box(Modifier.fillMaxWidth().height(if (wide) 140.dp else 120.dp), contentAlignment = Alignment.Center) {
+                if (predicted != null) Text("약 $predicted%", style = T.displayL, color = C.restText, maxLines = 1, softWrap = false)
                 else CalculatingText("계산 중", style = if (wide) T.displayL else T.titleL, color = dim)
             }
-            Spacer(Modifier.height(if (wide) D.section else D.gap))
+            Spacer(Modifier.height(D.gap))
         }
         if (departMinutes == null) { // 배터리 모드: 남은 시간 블록 (가로에선 오른쪽 열의 주인공)
             // 디자인 ⑧⑨: remaining은 실측 기울기가 있을 때만 값(고정 가정 없음). 계산 중엔 학습값 보조 줄, 실측이 생기면 보조 줄 대신 "실측" 태그 (학습값을 보여준 세션만)
@@ -383,17 +363,16 @@ fun RestingScreen(p: Phase.Resting, s: VehicleState, remaining: Int?, learned: I
                 if (remaining != null && learnedEta != null) Text("실측", style = T.labelS, color = dim,
                     modifier = Modifier.padding(start = 16.dp).border(2.dp, dim, RoundedCornerShape(8.dp)).padding(horizontal = 12.dp, vertical = 4.dp))
             }
-            Box(Modifier.fillMaxWidth().height(if (wide) 180.dp else 120.dp), contentAlignment = Alignment.Center) {
+            Box(Modifier.fillMaxWidth().height(if (wide) 140.dp else 120.dp), contentAlignment = Alignment.Center) {
                 if (remaining == null) CalculatingText("계산 중", style = if (wide) T.displayL else T.titleL, color = dim)
-                else Text("약 ${remaining}분", style = if (wide) T.displayXL else T.displayL, color = C.restText, maxLines = 1, softWrap = false)
+                else Text("약 ${remaining}분", style = T.displayL, color = C.restText, maxLines = 1, softWrap = false)
             }
             if (remaining == null && learnedEta != null) Text("지난 충전 기준 약 ${learnedEta}분", style = T.bodyS, color = dim, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
-            Spacer(Modifier.height(if (wide) D.section else D.gap))
+            Spacer(Modifier.height(D.gap))
         }
-        if (!wide) Spacer(Modifier.weight(1f))
         // 디자인 ⑫ M1: 선라이즈 문구는 하단 상태줄 첫 줄(헤더의 데모 고지는 유지)
-        if (p.sunrise) Text(if (Feature.AMBIENT in s.unsupported) "곧 깨워 드릴게요" else "곧 깨워 드릴게요 · 조명을 천천히 밝히는 중", style = T.bodyS.copy(fontWeight = FontWeight.Bold), color = C.restText, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
-        if (p.halfRecline) Text(if (s.rearSeatOccupied == true) "뒷좌석에 사람이 있어 등받이를 절반만 젖혔어요" else "뒷좌석 확인이 안 돼 등받이를 절반만 젖혔어요", style = T.bodyS, color = dim, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
+        if (p.sunrise) Text("곧 깨워 드려요", style = T.bodyS.copy(fontWeight = FontWeight.Bold), color = C.restText, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
+        if (false) Text("", style = T.bodyS, color = dim, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
         // 상태는 아이콘+뱃지(사용자 요청). 미지원은 흐리게 + "미지원"
         // 1줄: 실내등·온도·풍량 / 2줄: 등받이·(통풍)·앰비언트 (사용자 지정 순서)
         val row1 = listOf(
@@ -404,13 +383,13 @@ fun RestingScreen(p: Phase.Resting, s: VehicleState, remaining: Int?, learned: I
         val row2 = buildList {
             add(Badge(CabinIcon.SEAT, if (p.halfRecline) "등받이 절반" else "등받이 젖힘", Feature.SEAT_RECLINE in s.unsupported))
             if (p.seatMode == SeatMode.VENT) add(Badge(CabinIcon.VENT, "통풍 시트", Feature.SEAT_VENT in s.unsupported))
-            add(Badge(CabinIcon.AMBIENT, if (p.sunrise) "조명 밝히는 중" else "앰비언트 어둡게", Feature.AMBIENT in s.unsupported))
+            add(Badge(CabinIcon.AMBIENT, if (p.sunrise) "조명 밝아짐" else "조명 낮춤", Feature.AMBIENT in s.unsupported))
         }
         BadgeRow(row1, active = C.restText, muted = dim, bg = C.surfaceRest, large = wide)
         Spacer(Modifier.height(12.dp))
         BadgeRow(row2, active = C.restText, muted = dim, bg = C.surfaceRest, large = wide)
-        if (s.seatMoving) Text("시트 이동 중 · 화면을 누르면 멈춥니다", style = T.bodyS, color = dim, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
-        Spacer(Modifier.height(if (wide) D.section * 1.5f else D.section))
+        if (s.seatMoving) Text("시트 이동 중 · 누르면 멈춤", style = T.bodyS, color = dim, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
+        Spacer(Modifier.weight(1f))
         BigButton("종료", onStop, bg = C.surfaceRest, fg = C.restText)
     }
 }
@@ -421,7 +400,7 @@ fun RestoringScreen(p: Phase.Restoring, s: VehicleState, now: Long, onCancel: ()
     if (p.silent) { // 재정차 제안에서 "되돌리기" → 예고·취소 없음
         Screen(C.bgRest, Modifier.pointerInput(Unit) { detectTapGestures { onTouch() } }) {
             Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) { Text("되돌리는 중…", style = T.titleL, color = C.restText) }
-            if (s.seatMoving) Text("시트 이동 중 · 화면을 누르면 멈춥니다", style = T.bodyS, color = C.restTextDim, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
+            if (s.seatMoving) Text("시트 이동 중 · 누르면 멈춤", style = T.bodyS, color = C.restTextDim, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
         }
         return
     }
@@ -431,13 +410,13 @@ fun RestoringScreen(p: Phase.Restoring, s: VehicleState, now: Long, onCancel: ()
         if (p.reason == EndReason.TARGET_REACHED) Text("목표 ${p.target}%에 도달했습니다", style = T.bodyL, color = C.restText, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
         if (p.reason == EndReason.DEPARTURE) Text("출발 시각입니다 · 배터리 ${s.soc ?: "--"}%", style = T.bodyL, color = C.restText, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
         if (p.reason == EndReason.CHARGING_DONE) Text("충전이 끝났어요 · 배터리 ${s.soc ?: "--"}%", style = T.bodyL, color = C.restText, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
-        Text("${secs}초 후 시트를 원래대로", style = T.bodyL, color = C.restText, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
+        Text("${secs}초 후 원래대로", style = T.bodyL, color = C.restText, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
         Column(Modifier.weight(1f).fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
             Text("$secs", style = T.displayXL, color = C.restText)
             Text("초", style = T.titleL, color = C.restTextDim)
         }
-        if (s.seatMoving) Text("시트 이동 중 · 화면을 누르면 멈춥니다", style = T.bodyS, color = C.restTextDim, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
-        Text("취소하면 되돌리지 않고 지금 상태 그대로 끝냅니다", style = T.bodyS, color = C.restTextDim, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
+        if (s.seatMoving) Text("시트 이동 중 · 누르면 멈춤", style = T.bodyS, color = C.restTextDim, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
+        Text("취소하면 그대로 둬요", style = T.bodyS, color = C.restTextDim, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
         Spacer(Modifier.height(D.gap))
         BigButton("취소", onCancel, bg = C.surfaceRest, fg = C.restText)
     }
@@ -446,31 +425,28 @@ fun RestoringScreen(p: Phase.Restoring, s: VehicleState, now: Long, onCancel: ()
 @Composable
 fun DoneScreen(p: Phase.Done, s: VehicleState, onConfirm: () -> Unit, onRestore: () -> Unit, onKeep: () -> Unit) {
     val warnings = buildList {
-        if (s.rearSeatOccupied == true) add("뒷좌석에 사람이 있어요")
-        s.openWindows.forEach { add("$it 창문이 열려 있어요") }
-        if (s.cabinLightOn) add("실내등이 켜져 있어요")
+        if (s.rearSeatOccupied == true) add("뒷좌석 탑승자")
+        s.openWindows.forEach { add("$it 창문 열림") }
+        if (s.cabinLightOn) add("실내등 켜짐")
     }
     val resultBadges = if (p.restored) listOf(
         Badge(CabinIcon.SEAT, "등받이 원위치"), Badge(CabinIcon.AMBIENT, "조명 복원"), Badge(CabinIcon.TEMP, "공조 복원"),
     ) else listOf(Badge(CabinIcon.SEAT, "시트 그대로"), Badge(CabinIcon.AMBIENT, "조명 그대로"), Badge(CabinIcon.TEMP, "공조 그대로"))
-    Screen(C.bg, hero = {
-        Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
-            BadgeRow(listOf(Badge(CabinIcon.MOON, "휴식 모드 종료")) + (if (BuildConfig.DEMO) listOf(Badge(CabinIcon.CLOCK, "시간 단축 데모")) else emptyList()), active = C.textSecondary, muted = C.textTertiary, bg = C.surface)
-            Spacer(Modifier.height(D.section))
-            Text(p.reason.title(p.target), style = T.headlineL, color = C.textPrimary, textAlign = TextAlign.Center)
-            Spacer(Modifier.height(D.gap))
-            Text(if (p.restored) "시트·조명·공조를 원래대로 되돌렸어요" else "시트·조명·공조는 지금 상태 그대로예요", style = T.bodyL, color = C.textSecondary, textAlign = TextAlign.Center)
-            Spacer(Modifier.height(D.section))
-            BadgeRow(resultBadges, active = C.textPrimary, muted = C.textTertiary, bg = C.surface)
-        }
-    }) { wide ->
-        Text("내리기 전 확인", style = T.titleS, color = C.textPrimary)
+    Screen(C.bg, hero = { HeaderRow(listOf(Badge(CabinIcon.MOON, "휴식 끝")) + (if (BuildConfig.DEMO) listOf(Badge(CabinIcon.CLOCK, "시간 단축 데모", tint = C.warn.copy(alpha = 0.8f))) else emptyList())) }) { wide ->
+        Spacer(Modifier.weight(0.6f))
+        Text(p.reason.title(p.target), style = T.headlineL, color = C.textPrimary, textAlign = TextAlign.Center)
+        Spacer(Modifier.height(D.gap / 2))
+        Text(if (p.restored) "원래대로 돌려놨어요" else "지금 상태 그대로예요", style = T.bodyL, color = C.textSecondary, textAlign = TextAlign.Center)
         Spacer(Modifier.height(D.gap))
-        if (warnings.isEmpty()) WarnCard(Icons.Filled.Check, C.charge, "확인할 것 없음 · 안전하게 출발하세요")
+        BadgeRow(resultBadges, active = C.textPrimary, muted = C.textTertiary, bg = C.surface)
+        Spacer(Modifier.height(D.section))
+        Text("내리기 전 확인", style = T.titleS, color = C.textPrimary, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
+        Spacer(Modifier.height(D.gap))
+        if (warnings.isEmpty()) WarnCard(Icons.Filled.Check, C.charge, "확인할 것 없음")
         else Column(verticalArrangement = Arrangement.spacedBy(D.gap / 2)) { warnings.forEach { WarnCard(Icons.Filled.Warning, C.warn, it) } }
-        if (wide) Spacer(Modifier.height(D.section)) else Spacer(Modifier.weight(1f))
+        Spacer(Modifier.weight(1f))
         if (p.offerRestore) {
-            Text("시트를 원래대로 되돌릴까요?", style = T.bodyL, color = C.textPrimary, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
+            Text("시트를 되돌릴까요?", style = T.bodyL, color = C.textPrimary, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
             Spacer(Modifier.height(D.gap))
             Row(horizontalArrangement = Arrangement.spacedBy(D.gap)) {
                 BigButton("되돌리기", onRestore, Modifier.weight(1f))
@@ -535,7 +511,7 @@ private fun hhmm(ms: Long): String = java.text.SimpleDateFormat("HH:mm", java.ut
 
 private fun EndReason.title(target: Int) = when (this) {
     EndReason.TARGET_REACHED -> "목표 $target% 도달"; EndReason.CHARGING_STOPPED -> "충전 중단"
-    EndReason.DEPARTURE -> "출발 시각이에요"; EndReason.CHARGING_DONE -> "충전이 끝났어요"; else -> "휴식 모드 종료"
+    EndReason.DEPARTURE -> "출발 시각이에요"; EndReason.CHARGING_DONE -> "충전이 끝났어요"; else -> "휴식 끝"
 }
 
 private fun Gear.label() = when (this) { Gear.PARK -> "P"; Gear.DRIVE -> "D"; Gear.REVERSE -> "R"; Gear.NEUTRAL -> "N"; Gear.UNKNOWN -> "-" }
@@ -708,5 +684,28 @@ private fun WarnCard(icon: androidx.compose.ui.graphics.vector.ImageVector, tint
     ) {
         Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(40.dp))
         Text(text, style = T.bodyL, color = C.textPrimary)
+    }
+}
+
+
+/** 상단 헤더: 왼쪽 아이콘+앱명, 오른쪽 상태 뱃지 */
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+@Composable
+fun HeaderRow(badges: List<Badge>, bg: Color = C.surface, active: Color = C.textSecondary, muted: Color = C.textTertiary, showBrand: Boolean = true) {
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        if (showBrand) {
+            androidx.compose.foundation.Image(androidx.compose.ui.res.painterResource(R.mipmap.ic_launcher_foreground), contentDescription = null, modifier = Modifier.size(56.dp).clip(RoundedCornerShape(16.dp)))
+            Spacer(Modifier.width(12.dp))
+            Text("충전쉼표", style = T.titleS, color = active)
+        }
+        Spacer(Modifier.weight(1f))
+        androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.End), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            badges.forEach { b ->
+                val tint = b.tint ?: active
+                Row(Modifier.clip(RoundedCornerShape(14.dp)).background(bg).padding(horizontal = 14.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    CabinGlyph(b.icon, tint, Modifier.size(24.dp)); Text(b.label, style = T.bodyS, color = tint, maxLines = 1)
+                }
+            }
+        }
     }
 }
