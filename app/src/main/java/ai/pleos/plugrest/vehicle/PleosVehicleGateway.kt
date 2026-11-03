@@ -135,7 +135,11 @@ class PleosVehicleGateway(context: Context) : VehicleGateway {
             get<Boolean>(null) { ok, err -> ev.getEvChargeSwitchState(ok, err) }?.let { sw -> _state.update { it.copy(chargeSwitchOn = sw) } }
             get<VehicleGear>(Feature.GEAR) { ok, err -> vehicle.getGear().getCurrentGearSelectionState(ok, err) }?.let { g -> _state.update { it.copy(gear = g.toGear()) } }
             val seat = vehicle.getSeat()
-            rearSeats.forEach { s -> get<Boolean>(Feature.OCCUPANCY) { ok, err -> seat.getCurrentSeatOccupancy(SeatArea(s), ok, err) }?.let { rearOccupied[s] = it } }
+            rearSeats.forEach { s ->
+                val v = get<Boolean>(Feature.OCCUPANCY) { ok, err -> seat.getCurrentSeatOccupancy(SeatArea(s), ok, err) }
+                android.util.Log.i("PlugRest", "occupancy get $s = $v")
+                v?.let { rearOccupied[s] = it }
+            }
             _state.update { it.copy(rearSeatOccupied = rearOccupancy()) }
         }
     }
@@ -187,6 +191,7 @@ class PleosVehicleGateway(context: Context) : VehicleGateway {
             val area = SeatArea(s)
             val l = object : SeatOccupancyListener {
                 override fun onSeatOccupancyUpdated(value: Boolean?) {
+                    android.util.Log.i("PlugRest", "occupancy update $s = $value")
                     rearOccupied[s] = value == true
                     _state.update { it.copy(rearSeatOccupied = rearOccupancy()) }
                 }

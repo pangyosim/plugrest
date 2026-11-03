@@ -245,6 +245,10 @@ fun RestingScreen(p: Phase.Resting, s: VehicleState, remaining: Int?, learned: I
         } else {
             SocRing(s.soc ?: 0, p.target, C.restCharge, C.restText, Modifier.weight(1f, fill = false))
             Spacer(Modifier.weight(0.01f))
+        }
+        Spacer(Modifier.height(D.gap))
+    }) { wide ->
+        if (departMinutes == null) { // 배터리 모드: 남은 시간 블록 (가로에선 오른쪽 열의 주인공)
             // 디자인 ⑧⑨: remaining은 실측 기울기가 있을 때만 값(고정 가정 없음). 계산 중엔 학습값 보조 줄, 실측이 생기면 보조 줄 대신 "실측" 태그 (학습값을 보여준 세션만)
             val learnedEta = learned?.takeIf { it > 0 }
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
@@ -252,18 +256,17 @@ fun RestingScreen(p: Phase.Resting, s: VehicleState, remaining: Int?, learned: I
                 if (remaining != null && learnedEta != null) Text("실측", style = T.labelS, color = dim,
                     modifier = Modifier.padding(start = 16.dp).border(2.dp, dim, RoundedCornerShape(8.dp)).padding(horizontal = 12.dp, vertical = 4.dp))
             }
-            Box(Modifier.fillMaxWidth().height(120.dp), contentAlignment = Alignment.Center) {
-                if (remaining == null) Text("계산 중…", style = T.titleL, color = dim)
-                else Text("약 ${remaining}분", style = T.displayL, color = C.restText)
+            Box(Modifier.fillMaxWidth().height(if (wide) 180.dp else 120.dp), contentAlignment = Alignment.Center) {
+                if (remaining == null) Text("계산 중…", style = if (wide) T.displayL else T.titleL, color = dim)
+                else Text("약 ${remaining}분", style = if (wide) T.displayXL else T.displayL, color = C.restText, maxLines = 1, softWrap = false)
             }
             if (remaining == null && learnedEta != null) Text("지난 충전 기준 약 ${learnedEta}분", style = T.bodyS, color = dim, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
+            Spacer(Modifier.height(if (wide) D.section else D.gap))
         }
-        Spacer(Modifier.height(D.gap))
-    }) { wide ->
         if (!wide) Spacer(Modifier.weight(1f))
         // 디자인 ⑫ M1: 선라이즈 문구는 하단 상태줄 첫 줄(헤더의 데모 고지는 유지)
         if (p.sunrise) Text(if (Feature.AMBIENT in s.unsupported) "곧 깨워 드릴게요" else "곧 깨워 드릴게요 · 조명을 천천히 밝히는 중", style = T.bodyS.copy(fontWeight = FontWeight.Bold), color = C.restText, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
-        if (p.halfRecline) Text("뒷좌석에 사람이 있어 등받이를 절반만 젖혔어요", style = T.bodyS, color = dim, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
+        if (p.halfRecline) Text(if (s.rearSeatOccupied == true) "뒷좌석에 사람이 있어 등받이를 절반만 젖혔어요" else "뒷좌석 확인이 안 돼 등받이를 절반만 젖혔어요", style = T.bodyS, color = dim, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
         // 착좌 안내가 있으면 등받이 줄은 중복이라 생략(3줄 유지)
         val seatLine = when {
             p.halfRecline && p.seatMode == SeatMode.VENT -> "통풍 시트" to Feature.SEAT_VENT
