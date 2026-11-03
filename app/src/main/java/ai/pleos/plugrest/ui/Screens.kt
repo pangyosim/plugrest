@@ -42,6 +42,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -179,12 +180,12 @@ fun IdleScreen(s: VehicleState, blockReason: String?, rates: ChargeRateMemory, o
     var departure by remember { mutableStateOf(false) } // 세그먼트: 배터리 목표 | 출발 시각 (PRD §4.7)
     var departAt by remember { mutableStateOf(roundUp5(System.currentTimeMillis() + 30 * 60_000L)) } // 절대 시각(현재 이후만)
     val minDepart = now + MIN_DEPART_MS
-    if (departAt < minDepart) departAt = roundUp5(minDepart)
     val departMin = ((departAt - now + 59_999) / 60_000).toInt().coerceAtLeast(1)
     val learned by rates.rates.collectAsState()
     val eta = s.soc?.let { rates.estimateMinutes(it, target) }?.takeIf { it > 0 }
     val departSoc = s.soc?.let { rates.predictSoc(it, departMin) } // 학습값만, 가정 금지
     val batteryBlocked = !departure && targets.isEmpty()
+    val departInvalid = departure && departAt < minDepart
     val statusBadges = buildList {
         add(when {
             !s.connected -> Badge(CabinIcon.BOLT, "차량 연결 중")
@@ -212,26 +213,33 @@ fun IdleScreen(s: VehicleState, blockReason: String?, rates: ChargeRateMemory, o
         }
         Text("언제 깨워 드릴까요", style = T.labelM, color = C.textTertiary)
         Spacer(Modifier.height(D.gap / 2))
-        Segmented(listOf("배터리 목표", "출발 시각"), if (departure) 1 else 0, { departure = it == 1 })
+        Segmented(listOf("목표 배터리", "출발 시각"), if (departure) 1 else 0, { departure = it == 1 })
         Spacer(Modifier.height(D.gap))
         if (departure) {
-            // 빠른 선택(지금 +N분) + 실제 시각 조절(−10분 / +10분 / +1시간). 하한 = 현재 + 5분
-            Row(horizontalArrangement = Arrangement.spacedBy(D.gap)) {
-                DEPART_MINUTES.forEach { m ->
-                    val at = roundUp5(now + m * 60_000L)
-                    Chip("${m}분 후", Math.abs(departAt - at) < 60_000L, { departAt = at }, Modifier.weight(1f))
-                }
+            // iOS식 휠: 시 / 분(5분 단위) 위아래 스크롤. 아래에 빠른 선택(10·30·60분 후). 현재+5분 이전이면 시작 불가
+            val cal = java.util.Calendar.getInstance().apply { timeInMillis = departAt }
+            val hour = cal.get(java.util.Calendar.HOUR_OF_DAY); val minute5 = cal.get(java.util.Calendar.MINUTE) / 5
+            fun setHm(h: Int, m5: Int) {
+                val c = java.util.Calendar.getInstance().apply { timeInMillis = now; set(java.util.Calendar.HOUR_OF_DAY, h); set(java.util.Calendar.MINUTE, m5 * 5); set(java.util.Calendar.SECOND, 0); set(java.util.Calendar.MILLISECOND, 0) }
+                departAt = c.timeInMillis
+            }
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
+                Wheel((0..23).map { "%02d".format(it) }, hour, { setHm(it, minute5) }, Modifier.width(150.dp))
+                Text(":", style = T.displayL, color = C.textPrimary, modifier = Modifier.padding(horizontal = 12.dp))
+                Wheel((0..11).map { "%02d".format(it * 5) }, minute5, { setHm(hour, it) }, Modifier.width(150.dp))
+                Spacer(Modifier.width(D.section))
+                Column { Text("출발 시각", style = T.labelM, color = C.textTertiary); Text(hhmm(departAt), style = T.titleL, color = if (departAt >= minDepart) C.textPrimary else C.warn) }
             }
             Spacer(Modifier.height(D.gap))
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(D.gap)) {
-                Text(hhmm(departAt), style = T.titleL, color = C.textPrimary, modifier = Modifier.weight(1f))
-                Chip("−10분", false, { departAt = maxOf(roundUp5(minDepart), departAt - 10 * 60_000L) }, Modifier.weight(0.8f))
-                Chip("+10분", false, { departAt += 10 * 60_000L }, Modifier.weight(0.8f))
-                Chip("+1시간", false, { departAt += 60 * 60_000L }, Modifier.weight(0.8f))
+            Row(horizontalArrangement = Arrangement.spacedBy(D.gap)) {
+                DEPART_MINUTES.forEach { m ->
+                    val at = if (m == 2) now + 2 * 60_000L else roundUp5(now + m * 60_000L) // 데모 "2분 후"만 정확히
+                    Chip("${m}분 후", Math.abs(departAt - at) < 150_000L, { departAt = at }, Modifier.weight(1f))
+                }
             }
-        } else Row(horizontalArrangement = Arrangement.spacedBy(D.gap)) {
+        } else {
             if (targets.isEmpty()) Text("배터리가 이미 목표 이상이에요 · 출발 시각 모드를 써 보세요", style = T.bodyL, color = C.textSecondary)
-            else targets.forEach { t -> Chip("$t%", target == t, { target = t }, Modifier.weight(1f)) }
+            else RadioRow(targets.map { "$it%" }, targets.indexOf(target), { target = targets[it] })
         }
         Spacer(Modifier.height(D.gap))
         if (departure) Text(
@@ -250,9 +258,9 @@ fun IdleScreen(s: VehicleState, blockReason: String?, rates: ChargeRateMemory, o
             if (Feature.SEAT_VENT !in s.unsupported) Chip("켬", seat == SeatMode.VENT, { seat = SeatMode.VENT }, Modifier.weight(1f))
         }
         if (wide) Spacer(Modifier.height(D.section)) else Spacer(Modifier.weight(1f))
-        BigButton("휴식 모드 시작", { if (departure) onStart(100, seat, departMin) else onStart(target, seat, 0) }, enabled = blockReason == null && !batteryBlocked)
+        BigButton("휴식 모드 시작", { if (departure) onStart(100, seat, departMin) else onStart(target, seat, 0) }, enabled = blockReason == null && !batteryBlocked && !departInvalid)
         Spacer(Modifier.height(D.gap / 2))
-        Text(blockReason ?: if (departure) "${hhmm(departAt)}에 깨워 드릴게요" else if (batteryBlocked) "출발 시각 모드로 바꿔 주세요" else "목표 $target%에 도달하면 깨워 드릴게요", style = T.bodyS, color = C.textTertiary, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
+        Text(blockReason ?: if (departInvalid) "현재 시각 이후로 선택해 주세요" else if (departure) "${hhmm(departAt)}에 깨워 드릴게요" else if (batteryBlocked) "출발 시각 모드로 바꿔 주세요" else "목표 $target%에 도달하면 깨워 드릴게요", style = T.bodyS, color = C.textTertiary, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
     }
 }
 
@@ -451,10 +459,10 @@ private fun Toggle(label: String, checked: Boolean, modifier: Modifier = Modifie
 /** BuildConfig.DEMO: 시간이 단축된 빌드임을 심사위원에게 표시 */
 
 /** 출발 모드 칩. DEMO 빌드에서만 "2분 후" 시연용 칩 노출 (PRD §4.7) */
-private val DEPART_MINUTES = listOf(15, 30, 45) + if (BuildConfig.DEMO) listOf(2) else emptyList()
+private val DEPART_MINUTES = listOf(10, 30, 60) + if (BuildConfig.DEMO) listOf(2) else emptyList()
 private val TARGET_OPTIONS = listOf(60, 70, 80, 90)
 private val MIN_DEPART_MS = if (BuildConfig.DEMO) 60_000L else 5 * 60_000L
-private fun roundUp5(ms: Long): Long { val step = 5 * 60_000L; return if (BuildConfig.DEMO) ms else (ms + step - 1) / step * step }
+private fun roundUp5(ms: Long): Long { val step = 5 * 60_000L; return (ms + step - 1) / step * step } // 휠(5분 단위)과 일치
 private fun hhmm(ms: Long): String = java.text.SimpleDateFormat("HH:mm", java.util.Locale.KOREA).format(java.util.Date(ms))
 
 private fun EndReason.title(target: Int) = when (this) {
@@ -571,6 +579,54 @@ fun CalculatingText(prefix: String, style: androidx.compose.ui.text.TextStyle, c
         Box { // 보이지 않는 "…"로 폭 고정 + 실제 점
             Text("…", style = style, color = Color.Transparent)
             Text(".".repeat(n), style = style, color = color)
+        }
+    }
+}
+
+
+// ---- 라디오 행 (목표 배터리) ----
+@Composable
+fun RadioRow(labels: List<String>, selected: Int, onSelect: (Int) -> Unit) {
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(D.gap)) {
+        labels.forEachIndexed { i, label ->
+            val on = i == selected
+            Row(
+                Modifier.weight(1f).height(D.buttonM).clip(RoundedCornerShape(D.radiusM)).background(C.surface)
+                    .border(if (on) 3.dp else 0.dp, if (on) C.primary else Color.Transparent, RoundedCornerShape(D.radiusM))
+                    .clickable { onSelect(i) }.padding(horizontal = 20.dp),
+                verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp),
+            ) {
+                Box(Modifier.size(28.dp).border(3.dp, if (on) C.primary else C.textTertiary, androidx.compose.foundation.shape.CircleShape), contentAlignment = Alignment.Center) {
+                    if (on) Box(Modifier.size(14.dp).background(C.primary, androidx.compose.foundation.shape.CircleShape))
+                }
+                Text(label, style = T.titleS, color = C.textPrimary, maxLines = 1)
+            }
+        }
+    }
+}
+
+// ---- 휠 피커 (iOS식, 3줄 보임, 가운데 스냅) ----
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
+@Composable
+fun Wheel(items: List<String>, index: Int, onIndex: (Int) -> Unit, modifier: Modifier = Modifier) {
+    val itemH = 72.dp
+    val state = androidx.compose.foundation.lazy.rememberLazyListState(index)
+    val fling = androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior(state)
+    val centered by remember { derivedStateOf {
+        val info = state.layoutInfo; val mid = (info.viewportStartOffset + info.viewportEndOffset) / 2
+        info.visibleItemsInfo.minByOrNull { Math.abs(it.offset + it.size / 2 - mid) }?.index ?: index
+    } }
+    LaunchedEffect(state.isScrollInProgress) { if (!state.isScrollInProgress && centered != index) onIndex(centered) }
+    LaunchedEffect(index) { if (!state.isScrollInProgress && centered != index) state.scrollToItem(index) }
+    Box(modifier.height(itemH * 3), contentAlignment = Alignment.Center) {
+        Box(Modifier.fillMaxWidth().height(itemH).clip(RoundedCornerShape(16.dp)).background(C.surface)) // 가운데 선택 띠
+        androidx.compose.foundation.lazy.LazyColumn(state = state, flingBehavior = fling, contentPadding = androidx.compose.foundation.layout.PaddingValues(vertical = itemH), modifier = Modifier.fillMaxWidth()) {
+            items(items.size) { i ->
+                val on = i == centered
+                Box(Modifier.fillMaxWidth().height(itemH), contentAlignment = Alignment.Center) {
+                    Text(items[i], style = if (on) T.displayL.copy(fontSize = 48.sp, lineHeight = 52.sp) else T.titleL, color = if (on) C.textPrimary else C.textTertiary, maxLines = 1)
+                }
+            }
         }
     }
 }
