@@ -175,17 +175,17 @@ fun IdleScreen(s: VehicleState, blockReason: String?, rates: ChargeRateMemory, o
 }
 
 @Composable
-fun RestingScreen(p: Phase.Resting, s: VehicleState, remaining: Int?, learned: Int?, measured: Boolean, onStop: () -> Unit, onTouch: () -> Unit) {
+fun RestingScreen(p: Phase.Resting, s: VehicleState, remaining: Int?, learned: Int?, onStop: () -> Unit, onTouch: () -> Unit) {
     Screen(C.bgRest, Modifier.pointerInput(Unit) { detectTapGestures { onTouch() } }) {
         Text("휴식 중 · 목표 ${p.target}%$DEMO_TAG", style = T.labelM, color = C.restTextDim)
         Spacer(Modifier.height(D.gap))
         SocRing(s.soc ?: 0, p.target, C.restCharge, C.restText, Modifier.weight(1f, fill = false))
         Spacer(Modifier.weight(0.01f))
-        // 디자인 ⑧⑨: 계산 중엔 학습값 보조 줄, 실측이 생기면 보조 줄 대신 "실측" 태그 (학습값을 보여준 세션만)
+        // 디자인 ⑧⑨: remaining은 실측 기울기가 있을 때만 값(고정 가정 없음). 계산 중엔 학습값 보조 줄, 실측이 생기면 보조 줄 대신 "실측" 태그 (학습값을 보여준 세션만)
         val learnedEta = learned?.takeIf { it > 0 }
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
             Text("남은 시간", style = T.labelM, color = C.restTextDim)
-            if (remaining != null && learnedEta != null && measured) Text("실측", style = T.labelS, color = C.restTextDim,
+            if (remaining != null && learnedEta != null) Text("실측", style = T.labelS, color = C.restTextDim,
                 modifier = Modifier.padding(start = 16.dp).border(2.dp, C.restTextDim, RoundedCornerShape(8.dp)).padding(horizontal = 12.dp, vertical = 4.dp))
         }
         Box(Modifier.fillMaxWidth().height(120.dp), contentAlignment = Alignment.Center) {

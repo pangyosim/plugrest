@@ -103,30 +103,27 @@ class RestSession(
     }
 
     /**
-     * 남은 분. null = "계산 중"(시작 후 [calculatingMs] 이내). 0 = 도달.
-     * 최근 5분 기울기, 80% 초과 구간은 기울기×0.5, 5분 단위 반올림(최소 5).
+     * 남은 분. null = "계산 중"(시작 후 [calculatingMs] 이내 또는 실측 기울기 없음 — 추측하지 않는다, 학습값 표시는 UI가 [rates]로). 0 = 도달.
+     * 최근 5분 실측 기울기, 80% 초과 구간은 기울기×0.5, 5분 단위 반올림(최소 5).
      */
     @Synchronized fun remainingMinutes(soc: Int, target: Int, startedAt: Long): Int? {
         if (soc >= target) return 0
         if (now() - startedAt < calculatingMs) return null
-        // 실측 기울기 → 없으면 학습값(검수 F2) → 없으면 고정 가정
-        val slope = slopePctPerMin() ?: return rates.estimateMinutes(soc, target) ?: etaMinutes(soc, target, FALLBACK_PCT_PER_MIN, FALLBACK_PCT_PER_MIN * ABOVE_80_FACTOR)
+        val slope = slopePctPerMin() ?: return null
         return etaMinutes(soc, target, slope, slope * ABOVE_80_FACTOR)
     }
 
     /** Resting 종료 시 1회: 실측 기울기(최소 2분 데이터)가 있으면 학습 */
     private fun learn() { slopePctPerMin()?.let { rates.record(it, history.last().second) } }
 
-    /** 실측 기울기(2분 이상 데이터) 확보 여부 — "실측" 태그 표시 조건 */
-    @Synchronized fun hasMeasuredSlope(): Boolean = slopePctPerMin() != null
-
     private fun slopePctPerMin(): Double? {
         val t = now()
         val window = history.filter { t - it.first <= SLOPE_WINDOW_MS }
-        if (window.size < 2) return null
-        val dtMs = window.last().first - window.first().first
-        if (dtMs < minSlopeSpanMs) return null // 데이터 구간이 짧으면 기본 가정 사용(슬라이더 점프·초기 노이즈 방지)
-        val slope = (window.last().second - window.first().second) / (dtMs / 60_000.0)
+        // 정수 SOC 양자화 보정: 첫 값 변화 시점부터 잰다. 세션 시작 샘플은 SOC 틱 중간이라 그대로 쓰면 기울기가 과대 (검수 G2)
+        val start = window.firstOrNull { it.second != window.first().second } ?: return null
+        val dtMs = window.last().first - start.first
+        if (dtMs < minSlopeSpanMs) return null // 데이터 구간이 짧으면 "계산 중" 유지(슬라이더 점프·초기 노이즈 방지)
+        val slope = (window.last().second - start.second) / (dtMs / 60_000.0)
         return if (slope > 0) slope else null
     }
 
@@ -212,8 +209,6 @@ class RestSession(
         const val HISTORY_MS = 10 * 60_000L
         const val SLOPE_WINDOW_MS = 5 * 60_000L
         const val MAX_SESSION_MS = 2 * 60 * 60_000L
-        // ponytail: 급속 50kW / 아이오닉5 롱레인지 77.4kWh 가정 = 1.08 %/min. 실차 데이터로 교정하는 보정 상수.
-        const val FALLBACK_PCT_PER_MIN = 50.0 / 77.4 * 100.0 / 60.0
         // ponytail: 80% 초과 구간 감속 계수(추정). 실데이터로 교정.
         const val ABOVE_80_FACTOR = 0.5
     }
