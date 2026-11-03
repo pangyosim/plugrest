@@ -6,8 +6,8 @@ from PIL import Image, ImageDraw, ImageFont
 
 D = sys.argv[1]
 APP = "충전쉼표 (Plug & Rest)"
-ONE_LINER = ("전기차 충전 중 원탭으로 시트·조명·공조를 휴식 공간으로 바꾸고, 남은 시간을 분으로 보여 주며,",
-             "목표 충전량에 이르면 음성으로 깨워 원래 상태로 되돌려 주는 Pleos Connect 충전 대기 앱")
+ONE_LINER = ("전기차 충전 대기 시간을 원탭으로 휴식으로 바꾸고, 배터리 목표 또는 출발 시각에 맞춰",
+             "조명을 서서히 밝혀 차가 운전자를 깨운 뒤 원래 상태로 되돌려 주는 Pleos Connect 앱")
 SHOTS = [
     ("01-idle.png", "대기 — 충전 중임을 확인하면 목표(80/90%)와 시트 통풍을 고르고 '휴식 모드 시작'을 누른다"),
     ("02-resting-calculating.png", "휴식 시작 — 시트·조명·공조를 한 번에 바꾸고, 남은 시간은 실제 충전 속도를 볼 때까지 '계산 중'"),
@@ -17,6 +17,9 @@ SHOTS = [
     ("06-done-kept.png", "취소한 경우 — 시트·조명·공조는 그대로 두고, 하차 체크만 보여 준다"),
     ("07-idle-learned.png", "충전 속도 학습 — 두 번째 충전부터 대기 화면에 '지난 충전 n회 기준, 80%까지 보통 약 N분'"),
     ("08-calculating-learned.png", "학습값 보조 — '계산 중' 동안에도 지난 충전 기준 예상 시간을 함께 보여 준다"),
+    ("11-idle-departure.png", "출발 시각 모드 — 지난 충전 기준으로 출발 시 배터리를 미리 보여 준다('2분 후'는 데모 전용)"),
+    ("12-resting-departure.png", "출발까지 N분 — 출발 시 배터리는 실제 충전 속도를 확인할 때까지 '계산 중'으로 둔다"),
+    ("13-resting-sunrise.png", "선라이즈 기상 — 출발 직전 조명을 천천히 밝히고 풍량을 2단으로 올린 뒤 음성으로 깨운다"),
     # 09-resting-measured-tag.png는 제외(학습 25분 → 실측 20분이 '학습값 오류'로 읽힐 수 있음). PT 대체 자원으로만 보관
 ]
 FONT = "/System/Library/Fonts/AppleSDGothicNeo.ttc"  # ponytail: macOS 전용 한글 폰트 경로
